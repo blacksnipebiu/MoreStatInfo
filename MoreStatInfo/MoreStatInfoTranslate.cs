@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace MoreStatInfo
 {
@@ -77,7 +73,7 @@ namespace MoreStatInfo
             TranslateDict.Add("工厂信息", "FactoryInfo");
             TranslateDict.Add("星球信息", "PlanetInfo");
             TranslateDict.Add("多选星球", "Multiple select planets");
-            TranslateDict.Add("关闭白边", "Close White Panel");
+            TranslateDict.Add("防止穿透", "Close White Panel");
             TranslateDict.Add("加载全部星球", "Load All Planets");
             TranslateDict.Add("已加载星球", "Loaded Planets");
             TranslateDict.Add("未加载星球", "Unloaded Planets");

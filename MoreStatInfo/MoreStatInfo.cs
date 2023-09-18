@@ -1,13 +1,11 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
+using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
-using static MoreStatInfo.MoreStatInfoGUI;
+using static MoreStatInfo.GUIDraw;
 
 namespace MoreStatInfo
 {
@@ -16,10 +14,10 @@ namespace MoreStatInfo
     {
         public const string GUID = "cn.blacksnipe.dsp.MoreStatInfo";
         public const string NAME = "MoreStatInfo";
-        public const string VERSION = "1.3.5";
+        public const string VERSION = "1.4.0";
 
+        private static GUIDraw guiDraw;
         private int unloadPlanetNum;
-        private bool english;
         private bool[] searchcondition_bool = new bool[40];
         private string searchcondition_TypeName = "";
         private int pointPlanetId;
@@ -38,6 +36,7 @@ namespace MoreStatInfo
         private bool firstStart = true;
         private bool StopRefresh;
 
+        private bool englishShow;
         private bool producelimittoggle;
         private bool comsumeimittoggle;
         private bool theoryproducelimittoggle;
@@ -76,9 +75,8 @@ namespace MoreStatInfo
         private static Dictionary<int, Dictionary<int, int>> productIndices = new Dictionary<int, Dictionary<int, int>>();
         private int ItemInfoShowIndex = 1;
         private int pdselectinfoindex = 1;
-        private static ConfigEntry<int> scale;
+        public static ConfigEntry<int> scale;
         private static ConfigEntry<KeyboardShortcut> ShowCounter1;
-        public static ConfigEntry<bool> CloseUIpanel;
 
         private bool dropdownbutton;
         private bool _filtercondition;
@@ -245,7 +243,7 @@ namespace MoreStatInfo
             set
             {
                 if (value == _sortbypointproduct) return;
-                _sortbypointproduct=value;
+                _sortbypointproduct = value;
                 if (value)
                 {
                     for (int j = 0; j < ItemList.Count; j++)
@@ -261,13 +259,13 @@ namespace MoreStatInfo
             _TGMKinttostringMode = true;
             scale = Config.Bind("大小适配", "scale", 16);
             ShowCounter1 = Config.Bind("打开窗口快捷键", "Key", new KeyboardShortcut(KeyCode.Alpha3, KeyCode.LeftAlt));
-            CloseUIpanel = Config.Bind("关闭白色面板", "closePanel", true);
-            Init();
+            guiDraw = new GUIDraw();
             itemrefreshlasttime = Time.time;
             planetrefreshlasttime = Time.time;
             scrollPosition[0] = 0;
             pdselectscrollPosition[0] = 0;
             MoreStatInfoTranslate.regallTranslate();
+            Debug.Log("MoreStatInfo Start");
         }
 
         void Update()
@@ -288,7 +286,10 @@ namespace MoreStatInfo
                 firstStart = true;
                 Productsearchcondition = new Dictionary<int, bool>();
                 for (int i = 0; i < ItemList.Count; i++)
-                    Productsearchcondition.Add(ItemList[i].ID, false);
+                {
+                    if (!Productsearchcondition.ContainsKey(ItemList[i].ID))
+                        Productsearchcondition.Add(ItemList[i].ID, false);
+                }
                 foreach (StarData sd in GameMain.galaxy.stars)
                 {
                     foreach (PlanetData pd in sd.planets)
@@ -302,58 +303,23 @@ namespace MoreStatInfo
             {
                 if (ShowCounter1.Value.IsDown())
                 {
-                    ShowGUIWindow = !ShowGUIWindow;
+                    guiDraw.ShowGUIWindow = !guiDraw.ShowGUIWindow;
                 }
             }
         }
 
         void OnGUI()
         {
-            if (ShowGUIWindow)
+            if (!guiDraw.ShowGUIWindow)
             {
-                if (Input.GetKey(KeyCode.LeftControl))
-                {
-                    if (Input.GetKeyDown(KeyCode.UpArrow)) { scale.Value++; changescale = true; }
-                    if (Input.GetKeyDown(KeyCode.DownArrow)) { scale.Value--; changescale = true; }
-                    if (scale.Value < 5) scale.Value = 5;
-                    if (scale.Value > 35) scale.Value = 35;
-                }
-                english = Localization.language != Language.zhCN;
-                heightdis = GUI.skin.toggle.fontSize * 2;
-                switchwitdh = english ? 7 * heightdis : 4 * heightdis;
-                switchheight = heightdis * 10;
-                if (styleitemname == null)
-                {
-                    styleitemname = new GUIStyle(GUI.skin.label);
-                    styleitemname.normal.textColor = Color.white;
-                    buttonstyleblue = new GUIStyle(GUI.skin.button);
-                    buttonstyleblue.normal.textColor = styleblue.normal.textColor;
-                    buttonstyleyellow = new GUIStyle(GUI.skin.button);
-                    buttonstyleyellow.normal.textColor = styleyellow.normal.textColor;
-                }
-
-                buttonstyleblue.fontSize = GUI.skin.label.fontSize;
-                buttonstyleyellow.fontSize = GUI.skin.label.fontSize;
-                if (changescale || firstopen)
-                {
-                    changescale = false;
-                    firstopen = false;
-                    GUI.skin.label.fontSize = scale.Value;
-                    GUI.skin.button.fontSize = scale.Value;
-                    GUI.skin.toggle.fontSize = scale.Value;
-                    GUI.skin.textField.fontSize = scale.Value;
-                    GUI.skin.textArea.fontSize = scale.Value;
-                }
-                else if (!changescale && GUI.skin.toggle.fontSize != scale.Value)
-                {
-                    scale.Value = GUI.skin.toggle.fontSize;
-                }
-                MoreStatInfoPanelFun();
-                RefreshAll();
-                MainWindowShowFun();
-                SwitchWindowShowFun();
-                PlanetWindowShowFun();
+                return;
             }
+            englishShow = Localization.language != Language.zhCN;
+            guiDraw.Draw();
+            RefreshAll();
+            MainWindowShowFun();
+            SwitchWindowShowFun();
+            PlanetWindowShowFun();
         }
 
 
@@ -362,11 +328,8 @@ namespace MoreStatInfo
         /// </summary>
         private void MainWindowShowFun()
         {
-            if (!IsScalingWindow())
-            {
-                moveWindow();
-            }
-            scaling_window();
+            MoveWindow();
+            Scaling_Window();
             GUI.DrawTexture(GUI.Window(20210821, GetMainWindowRect(), MainWindow, "统计面板".getTranslate() + "(" + VERSION + ")" + "ps:ctrl+↑↓"), mytexture);
         }
 
@@ -395,10 +358,10 @@ namespace MoreStatInfo
         /// <param name="id"></param>
         public void MainWindow(int id)
         {
-            GUILayout.BeginArea(new Rect(10, 20, window_width, window_height));
+            GUILayout.BeginArea(new Rect(10, 20, MainWindowWidth, MainWindowHeight));
             int x = 0;
             int y = 0;
-            scrollPosition = GUI.BeginScrollView(new Rect(0, 0, window_width - 20, window_height - 30), scrollPosition, new Rect(0, 0, windowmaxwidth, windowmaxheight));
+            scrollPosition = GUI.BeginScrollView(new Rect(0, 0, MainWindowWidth - 20, MainWindowHeight - 30), scrollPosition, new Rect(0, 0, windowmaxwidth, windowmaxheight));
 
             if (Refreshfactoryinfo && factoryinfoshow != null && factoryinfoshow.Count > 0)
             {
@@ -407,7 +370,7 @@ namespace MoreStatInfo
                     ItemProto item = LDB.items.Select(wap.Key);
                     GUI.Button(new Rect(x, y, heightdis * 2, heightdis * 2), item.iconSprite.texture, new GUIStyle());
                     GUI.Label(AddRect(ref x, y + heightdis * 2, heightdis * 2, heightdis), wap.Value + "", styleblue);
-                    if (x > window_width - 10 - heightdis * 2)
+                    if (x > MainWindowWidth - 10 - heightdis * 2)
                     {
                         x = 0;
                         y += heightdis * 4;
@@ -429,14 +392,14 @@ namespace MoreStatInfo
                     PowerInfo[i] += TGMKinttostringMode ? TGMKinttostring(num, unit) : Threeinttostring(num) + unit;
                     GUI.Label(AddRect(10, ref y, 200, heightdis), PowerInfo[i], styleblue);
                 }
-                windowmaxwidth = (int)window_width - 10;
+                windowmaxwidth = (int)MainWindowWidth - 10;
             }
             else if (RefreshPlanetinfo)
             {
 
                 //筛选条件列表
                 {
-                    int tempwidth1 = english ? heightdis * 8 : heightdis * 4;
+                    int tempwidth1 = englishShow ? heightdis * 8 : heightdis * 4;
                     var RectSize = new Vector2(tempwidth1, heightdis);
                     //星球属性筛选条件
                     {
@@ -623,7 +586,7 @@ namespace MoreStatInfo
                 // 设置列宽度
                 int[] ColumnWidth = new int[11]
                 {
-                    english ? heightdis * 8 : heightdis * 4,
+                    englishShow ? heightdis * 8 : heightdis * 4,
                     heightdis * 4,
                     heightdis * 4,
                     heightdis * 4,
@@ -663,7 +626,8 @@ namespace MoreStatInfo
                     for (int j = 0; j < 10; j++)
                     {
                         var labelStyle = j % 2 == 0 ? styleblue : styleyellow;
-                        GUI.Label(AddRect(ref x, y, ColumnWidth[j + 1], heightdis), TGMKinttostring(tempDiction[itemID][j]), labelStyle);
+                        string number = TGMKinttostringMode ? TGMKinttostring(tempDiction[itemID][j]) : tempDiction[itemID][j].ToString();
+                        GUI.Label(AddRect(ref x, y, ColumnWidth[j + 1], heightdis), number, labelStyle);
                     }
 
                     x = 0;
@@ -719,7 +683,6 @@ namespace MoreStatInfo
             Refreshfactoryinfo = GUI.Toggle(AddRect(x, ref y, switchwitdh, heightdis), Refreshfactoryinfo, "工厂信息".getTranslate());
             RefreshPlanetinfo = GUI.Toggle(AddRect(x, ref y, switchwitdh, heightdis), RefreshPlanetinfo, "星球信息".getTranslate());
             Multplanetproduct = GUI.Toggle(AddRect(x, ref y, switchwitdh, heightdis), Multplanetproduct, "多选星球".getTranslate());
-            CloseUIpanel.Value = GUI.Toggle(AddRect(x, ref y, switchwitdh, heightdis), CloseUIpanel.Value, "关闭白边".getTranslate());
             GUILayout.EndArea();
         }
 
@@ -950,7 +913,7 @@ namespace MoreStatInfo
                     }
                 }
 
-                if (x > window_width - heightdis * 2)
+                if (x > MainWindowWidth - heightdis * 2)
                 {
                     y += heightdis;
                     x = 0;
@@ -1148,7 +1111,10 @@ namespace MoreStatInfo
                         if (!productIndices[pd.id].ContainsKey(i))
                             foreach (ItemProto ip in ItemList)
                                 if (i == factoryProduction.productIndices[ip.ID])
+                                {
                                     productIndices[pd.id].Add(i, ip.ID);
+                                    break;
+                                }
                         if (!productIndices[pd.id].ContainsKey(i))
                         {
                             continue;
@@ -1678,7 +1644,7 @@ namespace MoreStatInfo
                     unloadPlanetNum += pd.data == null && pd.factory == null ? 1 : 0;
                     if (PlanetorSum)
                     {
-                        if(!RefreshPlanetinfo && (!PlanetProduce.ContainsKey(pd.id) || PlanetProduce[pd.id].Count == 0))
+                        if (!RefreshPlanetinfo && (!PlanetProduce.ContainsKey(pd.id) || PlanetProduce[pd.id].Count == 0))
                         {
                             continue;
                         }
