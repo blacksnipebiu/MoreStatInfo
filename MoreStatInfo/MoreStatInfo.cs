@@ -14,7 +14,7 @@ namespace MoreStatInfo
     {
         public const string GUID = "cn.blacksnipe.dsp.MoreStatInfo";
         public const string NAME = "MoreStatInfo";
-        public const string VERSION = "1.4.0";
+        public const string VERSION = "1.4.1";
 
         private static GUIDraw guiDraw;
         private int unloadPlanetNum;
@@ -903,9 +903,10 @@ namespace MoreStatInfo
                         {
                             selectitemId = itemid;
 
-                            foreach (var psc in Productsearchcondition)
+                            var keys = Productsearchcondition.Keys.ToList();
+                            foreach (var key in keys)
                             {
-                                Productsearchcondition[psc.Key] = false;
+                                Productsearchcondition[key] = false;
                             }
 
                             Productsearchcondition[itemid] = true;
