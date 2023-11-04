@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using UnityEngine;
 using static MoreStatInfo.GUIDraw;
 
@@ -14,7 +15,7 @@ namespace MoreStatInfo
     {
         public const string GUID = "cn.blacksnipe.dsp.MoreStatInfo";
         public const string NAME = "MoreStatInfo";
-        public const string VERSION = "1.4.1";
+        public const string VERSION = "1.4.2";
 
         private static GUIDraw guiDraw;
         private int unloadPlanetNum;
@@ -36,7 +37,6 @@ namespace MoreStatInfo
         private bool firstStart = true;
         private bool StopRefresh;
 
-        private bool englishShow;
         private bool producelimittoggle;
         private bool comsumeimittoggle;
         private bool theoryproducelimittoggle;
@@ -46,7 +46,6 @@ namespace MoreStatInfo
         private bool building = true;
         private bool compound = true;
         private bool onlyseechose;
-        private bool firstopen;
         private bool noreachtheoryproduce;
         private bool noreachneedproduce;
         private bool theorynoreachneedproduce;
@@ -54,9 +53,6 @@ namespace MoreStatInfo
 
         private Vector2 scrollPosition;
         private Vector2 pdselectscrollPosition;
-        private float itemrefreshlasttime;
-        private float planetrefreshlasttime;
-        private bool changescale;
         private List<int> iteminfoshow = new List<int>();
         private List<int> planetinfoshow = new List<int>();
         private List<int> planetsproductinfoshow = new List<int>();
@@ -64,10 +60,6 @@ namespace MoreStatInfo
         private static List<ItemProto> ItemList = new List<ItemProto>();
         private static Dictionary<int, long[]> SumProduce = new Dictionary<int, long[]>();
         private Dictionary<int, int> factoryinfoshow = new Dictionary<int, int>();
-        private int[] VeinIDs = new int[15]
-        {
-            0,1001,1002,1003,1004,1005,1006,1007,1011,1012,1013,1117,1014,1015,1016
-        };
         private long[] sumpowerinfoshow = new long[5];
         private Dictionary<int, long[]> powerenergyinfoshow = new Dictionary<int, long[]>();
         private Dictionary<int, long[]> multPlanetProduce = new Dictionary<int, long[]>();
@@ -87,6 +79,7 @@ namespace MoreStatInfo
         private bool _TGMKinttostringMode;
         private bool _RemoteorLocal;
         private bool _sortbypointproduct;
+        private bool _sortbyPlanetDataDis;
 
 
         /// <summary>
@@ -205,12 +198,12 @@ namespace MoreStatInfo
                 _TGMKinttostringMode = value;
                 if (TGMKinttostringMode)
                 {
-                    styleblue.fontSize = 20;
+                    styleboldblue.fontSize = 20;
                     styleyellow.fontSize = 20;
                 }
                 else
                 {
-                    styleblue.fontSize = 15;
+                    styleboldblue.fontSize = 15;
                     styleyellow.fontSize = 15;
                 }
             }
@@ -254,18 +247,27 @@ namespace MoreStatInfo
             }
         }
 
+        public static bool OneSecondElapsed;
+
         void Start()
         {
             _TGMKinttostringMode = true;
             scale = Config.Bind("大小适配", "scale", 16);
             ShowCounter1 = Config.Bind("打开窗口快捷键", "Key", new KeyboardShortcut(KeyCode.Alpha3, KeyCode.LeftAlt));
             guiDraw = new GUIDraw();
-            itemrefreshlasttime = Time.time;
-            planetrefreshlasttime = Time.time;
             scrollPosition[0] = 0;
             pdselectscrollPosition[0] = 0;
             MoreStatInfoTranslate.regallTranslate();
             Debug.Log("MoreStatInfo Start");
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                while (true)
+                {
+                    OneSecondElapsed = true;
+                    Thread.Sleep(1000);
+                }
+            });
+
         }
 
         void Update()
@@ -314,12 +316,15 @@ namespace MoreStatInfo
             {
                 return;
             }
-            englishShow = Localization.language != Language.zhCN;
             guiDraw.Draw();
             RefreshAll();
             MainWindowShowFun();
             SwitchWindowShowFun();
             PlanetWindowShowFun();
+            if (OneSecondElapsed)
+            {
+                OneSecondElapsed = false;
+            }
         }
 
 
@@ -368,8 +373,8 @@ namespace MoreStatInfo
                 foreach (KeyValuePair<int, int> wap in factoryinfoshow)
                 {
                     ItemProto item = LDB.items.Select(wap.Key);
-                    GUI.Button(new Rect(x, y, heightdis * 2, heightdis * 2), item.iconSprite.texture, new GUIStyle());
-                    GUI.Label(AddRect(ref x, y + heightdis * 2, heightdis * 2, heightdis), wap.Value + "", styleblue);
+                    GUI.Button(new Rect(x, y, heightdis * 2, heightdis * 2), item.iconSprite.texture, guiDraw.emptyStyle);
+                    GUI.Label(AddRect(ref x, y + heightdis * 2, heightdis * 2, heightdis), wap.Value + "", styleboldblue);
                     if (x > MainWindowWidth - 10 - heightdis * 2)
                     {
                         x = 0;
@@ -390,126 +395,183 @@ namespace MoreStatInfo
                     string unit = i == 2 ? "J" : "W";
                     double num = (RefreshPlanetinfo || PlanetorSum) && pointPlanetId > 0 && powerenergyinfoshow.ContainsKey(pointPlanetId) ? powerenergyinfoshow[pointPlanetId][i] : sumpowerinfoshow[i];
                     PowerInfo[i] += TGMKinttostringMode ? TGMKinttostring(num, unit) : Threeinttostring(num) + unit;
-                    GUI.Label(AddRect(10, ref y, 200, heightdis), PowerInfo[i], styleblue);
+                    GUI.Label(AddRect(10, ref y, 200, heightdis), PowerInfo[i], styleboldblue);
                 }
                 windowmaxwidth = (int)MainWindowWidth - 10;
             }
             else if (RefreshPlanetinfo)
             {
-
+                var iconoptions = new[] { GUILayout.Width(heightdis), GUILayout.Height(heightdis) };
+                GUILayout.BeginHorizontal();
                 //筛选条件列表
                 {
-                    int tempwidth1 = englishShow ? heightdis * 8 : heightdis * 4;
-                    var RectSize = new Vector2(tempwidth1, heightdis);
                     //星球属性筛选条件
                     {
-                        GUI.Label(AddRect(x, ref y, RectSize), "附属气态星产物".getTranslate());
+                        GUILayout.BeginVertical();
+                        GUILayout.Label("附属气态星产物".getTranslate());
                         for (int i = 15; i <= 17; i++)
-                            searchcondition_bool[i] = GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[i], searchchineseTranslate(i));
-                        GUI.Label(AddRect(x, ref y, RectSize), "星球特殊性".getTranslate());
+                            searchcondition_bool[i] = GUILayout.Toggle(searchcondition_bool[i], searchchineseTranslate(i));
+
+                        GUILayout.Label("星球特殊性".getTranslate());
                         for (int i = 18; i <= 25; i++)
-                            searchcondition_bool[i] = GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[i], searchchineseTranslate(i));
-                        if (searchcondition_bool[26] != GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[26], "具有工厂".getTranslate()))
+                            searchcondition_bool[i] = GUILayout.Toggle(searchcondition_bool[i], searchchineseTranslate(i));
+
+                        if (searchcondition_bool[26] != GUILayout.Toggle(searchcondition_bool[26], "具有工厂".getTranslate()))
                         {
                             searchcondition_bool[26] = !searchcondition_bool[26];
                             if (searchcondition_bool[26])
                                 searchcondition_bool[27] = false;
                         }
-                        if (searchcondition_bool[27] != GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[27], "不具有工厂".getTranslate()))
+                        if (searchcondition_bool[27] != GUILayout.Toggle(searchcondition_bool[27], "不具有工厂".getTranslate()))
                         {
                             searchcondition_bool[27] = !searchcondition_bool[27];
                             if (searchcondition_bool[27])
                                 searchcondition_bool[26] = false;
                         }
-                        if (searchcondition_bool[28] != GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[28], "电力不足".getTranslate()))
+                        if (searchcondition_bool[28] != GUILayout.Toggle(searchcondition_bool[28], "电力不足".getTranslate()))
                         {
                             searchcondition_bool[28] = !searchcondition_bool[28];
                             if (searchcondition_bool[28])
                                 searchcondition_bool[26] = true;
                         }
-                        if (searchcondition_bool[29] != GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[29], "已加载星球".getTranslate()))
+                        if (searchcondition_bool[29] != GUILayout.Toggle(searchcondition_bool[29], "已加载星球".getTranslate()))
                         {
                             searchcondition_bool[29] = !searchcondition_bool[29];
                             if (searchcondition_bool[29])
                                 searchcondition_bool[30] = false;
                         }
-                        if (searchcondition_bool[30] != GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[30], "未加载星球".getTranslate()))
+                        if (searchcondition_bool[30] != GUILayout.Toggle(searchcondition_bool[30], "未加载星球".getTranslate()))
                         {
                             searchcondition_bool[30] = !searchcondition_bool[30];
                             if (searchcondition_bool[30])
                                 searchcondition_bool[29] = false;
                         }
+                        GUILayout.EndVertical();
                     }
 
                     //矿物筛选条件
                     {
-                        x += tempwidth1;
-                        y = 0;
-                        GUI.Label(AddRect(x, ref y, RectSize), "目标星球矿物".getTranslate());
+                        GUILayout.BeginVertical();
+                        GUILayout.Label("目标星球矿物".getTranslate());
                         for (int i = 1; i <= 14; i++)
-                            searchcondition_bool[i] = GUI.Toggle(AddRect(x, ref y, RectSize), searchcondition_bool[i], searchchineseTranslate(i));
-                        GUI.Label(AddRect(x, ref y, RectSize), "未加载星球".getTranslate() + $"{unloadPlanetNum}");
-                        if (GUI.Button(AddRect(x, ref y, RectSize), "加载全部星球".getTranslate()))
+                            searchcondition_bool[i] = GUILayout.Toggle(searchcondition_bool[i], searchchineseTranslate(i));
+                        _sortbyPlanetDataDis = GUILayout.Toggle(_sortbyPlanetDataDis, "依照离玩家距离排序".getTranslate());
+                        if (GUILayout.Button("取消所有条件".getTranslate()))
+                        {
+                            for (int i = searchcondition_bool.Length - 1; i >= 0; i--)
+                            {
+                                searchcondition_bool[i] = false;
+                            }
+                        }
+                        GUILayout.Label("未加载星球".getTranslate() + $"{unloadPlanetNum}");
+                        if (GUILayout.Button("加载全部星球".getTranslate()))
                         {
                             LoadAllPlanet();
                         }
                         if (PlanetModelingManager.calPlanetReqList.Count > 0)
                         {
-                            GUI.Label(AddRect(x, ref y, RectSize), $"{PlanetModelingManager.calPlanetReqList.Count}" + "个星球加载中".getTranslate());
-                            GUI.Label(AddRect(x, ref y, RectSize), "请勿切换存档".getTranslate());
+                            GUILayout.Label($"{PlanetModelingManager.calPlanetReqList.Count}" + "个星球加载中".getTranslate());
+                            GUILayout.Label("请勿切换存档".getTranslate());
                         }
+                        GUILayout.EndVertical();
                     }
 
                     //星球类型筛选条件
                     {
-                        x += tempwidth1;
-                        y = 0;
-                        GUI.Label(AddRect(x, ref y, RectSize), "星球类型".getTranslate());
-                        if (GUI.Button(AddRect(x, ref y, RectSize), searchcondition_TypeName == "" ? "未选择".getTranslate() : searchcondition_TypeName))
+                        GUILayout.BeginVertical();
+                        GUILayout.Label("星球类型".getTranslate());
+                        if (GUILayout.Button(searchcondition_TypeName == "" ? "未选择".getTranslate() : searchcondition_TypeName))
                         {
                             dropdownbutton = !dropdownbutton;
                         }
                         if (dropdownbutton)
                         {
-                            if (GUI.Button(AddRect(x, ref y, RectSize), "取消选择"))
+                            if (GUILayout.Button("取消选择"))
                             {
                                 dropdownbutton = !dropdownbutton;
                                 searchcondition_TypeName = "";
                             }
                             for (int i = 0; i < PlanetType.Count; i++)
                             {
-                                if (GUI.Button(AddRect(x, ref y, RectSize), PlanetType[i]))
+                                if (GUILayout.Button(PlanetType[i]))
                                 {
                                     dropdownbutton = !dropdownbutton;
                                     searchcondition_TypeName = PlanetType[i];
                                 }
                             }
                         }
+                        GUILayout.EndVertical();
                     }
 
-                    x += tempwidth1;
                 }
+                GUILayout.Space(heightdis);
 
                 //星球信息
                 PlanetData pd;
                 if (pointPlanetId > 0 && (pd = GameMain.galaxy.PlanetById(pointPlanetId)) != null)
                 {
-                    x += 10;
-                    y = 0;
-                    Vector2 RectSize = new Vector2(heightdis * 8, heightdis);
-                    string pdname = GUI.TextArea(AddRect(x, ref y, RectSize), pd.displayName);
+                    GUILayout.BeginVertical();
+                    GUILayout.Label("行星信息".getTranslate() + ":", styleboldblue);
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(20);
+                    GUILayout.BeginVertical();
+                    string pdname = GUILayout.TextArea(pd.displayName);
                     if (!pdname.Equals(pd.displayName))
                     {
                         pd.overrideName = pdname;
                         pd.NotifyOnDisplayNameChange();
                     }
+                    if (pd.gasItems == null)
+                    {
+                        string waterType = GetWaterTypeText(pd.waterItemId);
+                        GUILayout.Space(5);
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label("海洋类型".getTranslate() + ":", stylenormalblue);
+                        GUILayout.Space(20);
+                        GUILayout.Label(waterType, stylenormalblue);
+                        GUILayout.EndHorizontal();
+                        GUILayout.Space(5);
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Label("星球类型".getTranslate() + ":", stylenormalblue);
+                        GUILayout.Space(20);
+                        GUILayout.Label(pd.typeString, stylenormalblue);
+                        GUILayout.EndHorizontal();
+                        if (pd.singularityString.Length > 0)
+                        {
+                            GUILayout.Space(5);
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Label("星球特殊性".getTranslate() + ": ", stylenormalblue);
+                            GUILayout.Space(20);
+                            GUILayout.Label(pd.singularityString, stylenormalblue);
+                            GUILayout.EndHorizontal();
+                        }
+                    }
+                    GUILayout.Space(5);
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("工厂状态".getTranslate() + ":", stylenormalblue);
+                    GUILayout.Space(20);
+                    GUILayout.Label(PlanetProduce.ContainsKey(pd.id) ? "有".getTranslate() : "无".getTranslate(), stylenormalblue);
+                    GUILayout.EndHorizontal();
+                    GUILayout.Space(5);
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("距离玩家".getTranslate() + ":", stylenormalblue);
+                    GUILayout.Space(20);
+                    GUILayout.Label(PlayerToPlanetDisTranslate(pd), stylenormalblue);
+                    GUILayout.EndHorizontal();
+                    if (GUILayout.Button("方向指引".getTranslate()))
+                    {
+                        GameMain.mainPlayer.navigation._indicatorAstroId = pd.id;
+                    }
+                    GUILayout.Space(20);
                     if (pd.gasItems != null)
                     {
                         for (int i = 0; i < pd.gasItems.Length; i++)
                         {
                             ItemProto item = LDB.items.Select(pd.gasItems[i]);
-                            GUI.Button(AddRect(ref x, y, heightdis, heightdis), item.iconSprite.texture, new GUIStyle());
-                            GUI.Label(AddRect(x, ref y, heightdis * 4, heightdis), item.name + ":" + String.Format("{0:N2}", pd.gasSpeeds[i]), styleblue);
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Button(item.iconSprite.texture, guiDraw.emptyStyle, iconoptions);
+                            GUILayout.Label(item.name + ":" + string.Format("{0:N2}", pd.gasSpeeds[i]), stylenormalblue);
+                            GUILayout.EndHorizontal();
                         }
                     }
                     else
@@ -522,57 +584,76 @@ namespace MoreStatInfo
                             if (planetveinSpotsSketch[k] == 0) continue;
                             long i = veinAmounts[k];
 
-                            int veinid = VeinIDs[k];
-                            GUI.Button(new Rect(x, y, heightdis, heightdis), LDB.items.Select(veinid).iconSprite.texture, new GUIStyle());
-                            GUI.Label(AddRect(x + heightdis, ref y, RectSize), LDB.items.Select(veinid).name + TGMKinttostring(i) + ("(" + planetveinSpotsSketch[k] + ")"), styleblue);
+                            var item = LDB.items.Select(LDB.veins.Select(k).MiningItem);
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Button(item.iconSprite.texture, guiDraw.emptyStyle, iconoptions);
+                            GUILayout.Label(item.name + TGMKinttostring(i) + ("(" + planetveinSpotsSketch[k] + ")"), stylenormalblue);
+                            GUILayout.EndHorizontal();
                         }
                     }
-                    x += (int)RectSize.x + 10;
-                    y = 0;
-                    if (pd.orbitAroundPlanet != null)
-                    {
-                        GUI.Label(AddRect(x, ref y, RectSize), "围绕行星".getTranslate() + ":", styleblue);
-                        pdname = GUI.TextArea(AddRect(x, ref y, RectSize), pd.orbitAroundPlanet.displayName);
-                        if (!pdname.Equals(pd.orbitAroundPlanet.displayName))
-                        {
-                            pd.orbitAroundPlanet.overrideName = pdname;
-                            pd.orbitAroundPlanet.NotifyOnDisplayNameChange();
-                        }
-                        for (int i = 0; i < pd.orbitAroundPlanet.gasItems.Length; i++)
-                        {
-                            ItemProto item = LDB.items.Select(pd.orbitAroundPlanet.gasItems[i]);
-                            GUI.Button(new Rect(x, y, heightdis, heightdis), item.iconSprite.texture, new GUIStyle());
-                            GUI.Label(AddRect(x + heightdis, ref y, RectSize), item.name + ":" + String.Format("{0:N2}", pd.orbitAroundPlanet.gasSpeeds[i]), styleblue);
-                        }
-                    }
-                    if (pd.gasItems == null)
-                    {
-                        string waterType = GetWaterTypeText(pd.waterItemId);
+                    GUILayout.EndVertical();
+                    GUILayout.EndHorizontal();
+                    GUILayout.EndVertical();
 
-                        GUI.Label(AddRect(x, ref y, RectSize), "行星信息".getTranslate() + ":", styleblue);
-                        GUI.Label(AddRect(x, ref y, RectSize), "海洋类型".getTranslate() + ":" + waterType, styleblue);
-                        GUI.Label(AddRect(x, ref y, RectSize), "星球类型".getTranslate() + ":" + pd.typeString, styleblue);
-                        if (pd.singularityString.Length > 0)
-                            GUI.Label(AddRect(x, ref y, RectSize), "星球特殊性".getTranslate() + ": " + pd.singularityString, styleblue);
-                    }
-                    GUI.Label(AddRect(x, ref y, RectSize), PlanetProduce.ContainsKey(pd.id) ? "具有工厂".getTranslate() : "不具有工厂".getTranslate(), styleblue);
-                    StarData sd = pd.star;
+                    GUILayout.Space(20);
 
-                    GUI.Label(AddRect(x, ref y, RectSize), "恒星信息".getTranslate() + ":", styleblue);
-                    string starname = GUI.TextArea(AddRect(x, ref y, RectSize), sd.displayName);
-                    if (!starname.Equals(sd.displayName))
+                    GUILayout.BeginVertical();
+
                     {
-                        sd.overrideName = starname;
-                        sd.NotifyOnDisplayNameChange();
+                        GUILayout.BeginVertical();
+                        if (pd.orbitAroundPlanet != null)
+                        {
+                            GUILayout.Label("围绕行星".getTranslate() + ":", styleboldblue);
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(20);
+                            GUILayout.BeginVertical();
+                            pdname = GUILayout.TextArea(pd.orbitAroundPlanet.displayName);
+                            if (!pdname.Equals(pd.orbitAroundPlanet.displayName))
+                            {
+                                pd.orbitAroundPlanet.overrideName = pdname;
+                                pd.orbitAroundPlanet.NotifyOnDisplayNameChange();
+                            }
+                            for (int i = 0; i < pd.orbitAroundPlanet.gasItems.Length; i++)
+                            {
+                                ItemProto item = LDB.items.Select(pd.orbitAroundPlanet.gasItems[i]);
+                                GUILayout.BeginHorizontal();
+                                GUILayout.Button(item.iconSprite.texture, guiDraw.emptyStyle, iconoptions);
+                                GUILayout.Label(item.name + ":" + string.Format("{0:N2}", pd.orbitAroundPlanet.gasSpeeds[i]), stylenormalblue);
+                                GUILayout.EndHorizontal();
+                            }
+                            GUILayout.EndVertical();
+                            GUILayout.EndHorizontal();
+                            GUILayout.Space(heightdis);
+                        }
+
+                        {
+                            GUILayout.Label("恒星信息".getTranslate() + ":", styleboldblue);
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(20);
+                            GUILayout.BeginVertical();
+                            StarData sd = pd.star;
+                            string starname = GUILayout.TextArea(sd.displayName);
+                            if (!starname.Equals(sd.displayName))
+                            {
+                                sd.overrideName = starname;
+                                sd.NotifyOnDisplayNameChange();
+                            }
+                            GUILayout.Space(5);
+                            GUILayout.Label(sd.typeString, stylenormalblue);
+                            GUILayout.Space(5);
+                            GUILayout.Label("恒星亮度".getTranslate() + ":" + sd.dysonLumino + "", stylenormalblue);
+                            GUILayout.Space(5);
+                            GUILayout.EndVertical();
+                            GUILayout.EndHorizontal();
+                        }
+                        GUILayout.EndVertical();
                     }
-                    GUI.Label(AddRect(x, ref y, RectSize), sd.typeString, styleblue);
-                    GUI.Label(AddRect(x, ref y, RectSize), "恒星亮度".getTranslate() + ":" + sd.dysonLumino + "", styleblue);
-                    if (GUI.Button(AddRect(x, ref y, RectSize), "方向指引".getTranslate()))
-                    {
-                        GameMain.mainPlayer.navigation._indicatorAstroId = pd.id;
-                    }
-                    windowmaxwidth = x + (int)RectSize.x;
+
+                    GUILayout.EndVertical();
                 }
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                windowmaxwidth = (int)MainWindowWidth - 30;
             }
             else
             {
@@ -586,7 +667,7 @@ namespace MoreStatInfo
                 // 设置列宽度
                 int[] ColumnWidth = new int[11]
                 {
-                    englishShow ? heightdis * 8 : heightdis * 4,
+                    Localization.language != Language.zhCN ? heightdis * 8 : heightdis * 4,
                     heightdis * 4,
                     heightdis * 4,
                     heightdis * 4,
@@ -621,11 +702,11 @@ namespace MoreStatInfo
                     var item = LDB.items.Select(itemInfo);
                     var itemID = item.ID;
 
-                    GUI.Button(AddRect(ref x, y, heightdis, heightdis), item.iconSprite.texture, new GUIStyle());
+                    GUI.Button(AddRect(ref x, y, heightdis, heightdis), item.iconSprite.texture, guiDraw.emptyStyle);
                     GUI.Label(AddRect(ref x, y, ColumnWidth[0] - heightdis, heightdis), item.name, styleitemname);
                     for (int j = 0; j < 10; j++)
                     {
-                        var labelStyle = j % 2 == 0 ? styleblue : styleyellow;
+                        var labelStyle = j % 2 == 0 ? styleboldblue : styleyellow;
                         string number = TGMKinttostringMode ? TGMKinttostring(tempDiction[itemID][j]) : tempDiction[itemID][j].ToString();
                         GUI.Label(AddRect(ref x, y, ColumnWidth[j + 1], heightdis), number, labelStyle);
                     }
@@ -697,11 +778,11 @@ namespace MoreStatInfo
             RefreshPlanet();
             for (int i = (pdselectinfoindex - 1) * 20; i < pdselectinfoindex * 20 && i < planetinfoshow.Count; i++)
             {
-                GUIStyle style = new GUIStyle(GUI.skin.button);
+                GUIStyle style = normalPlanetButtonStyle;
                 if (!Multplanetproduct)
                 {
                     if (pointPlanetId == planetinfoshow[i])
-                        style.normal.textColor = new Color32(215, 186, 245, 255);
+                        style = selectedPlanetButtonStyle;
                     if (GUI.Button(new Rect(5, (i - (pdselectinfoindex - 1) * 20) * heightdis, heightdis * 8, heightdis), GameMain.galaxy.PlanetById(planetinfoshow[i]).displayName, style))
                     {
                         pointPlanetId = planetinfoshow[i];
@@ -711,7 +792,7 @@ namespace MoreStatInfo
                 else
                 {
                     if (planetsproductinfoshow.Contains(planetinfoshow[i]))
-                        style.normal.textColor = new Color32(215, 186, 245, 255);
+                        style = selectedPlanetButtonStyle;
                     if (GUI.Button(new Rect(5, (i - (pdselectinfoindex - 1) * heightdis) * heightdis, heightdis * 8, heightdis), GameMain.galaxy.PlanetById(planetinfoshow[i]).displayName, style))
                     {
                         if (planetsproductinfoshow.Contains(planetinfoshow[i]))
@@ -727,18 +808,8 @@ namespace MoreStatInfo
             int tempwidth = 0;
             for (int i = pdselectinfoindex > 3 ? pdselectinfoindex - 2 : 1; i <= indexnum; i++)
             {
-                if (i == pdselectinfoindex)
-                {
-                    GUIStyle style = new GUIStyle(GUI.skin.button);
-                    style.normal.textColor = new Color32(215, 186, 245, 255);
-                    if (GUI.Button(new Rect(heightdis * tempwidth++, 20 * heightdis, heightdis, heightdis), i + "", style))
-                        pdselectinfoindex = i;
-                }
-                else
-                {
-                    if (GUI.Button(new Rect(heightdis * tempwidth++, 20 * heightdis, heightdis, heightdis), i + ""))
-                        pdselectinfoindex = i;
-                }
+                if (GUI.Button(new Rect(heightdis * tempwidth++, 20 * heightdis, heightdis, heightdis), i + "", i == pdselectinfoindex ? selectedPlanetButtonStyle : normalPlanetButtonStyle))
+                    pdselectinfoindex = i;
             }
             GUILayout.EndArea();
         }
@@ -886,11 +957,11 @@ namespace MoreStatInfo
                     continue;
                 }
 
-                GUIStyle style = new GUIStyle();
+                GUIStyle style = guiDraw.emptyStyle;
 
                 if (Productsearchcondition[itemid])
                 {
-                    style.normal.background = Texture2D.whiteTexture;
+                    style = guiDraw.whiteStyle;
                 }
 
                 if (GUI.Button(AddRect(ref x, y, heightdis, heightdis), item.iconSprite.texture, style))
@@ -975,7 +1046,7 @@ namespace MoreStatInfo
 
         private string searchchineseTranslate(int i)
         {
-            if (0 < i && i < 15) return LDB.ItemName(VeinIDs[i]);
+            if (0 < i && i < 15) return LDB.items.Select(LDB.veins.Select(i).MiningItem).name;
             if (i == 15) return "可燃冰".getTranslate();
             if (i == 16) return "氢".getTranslate();
             if (i == 17) return "重氢".getTranslate();
@@ -1013,11 +1084,10 @@ namespace MoreStatInfo
         /// </summary>
         private void RefreshAll()
         {
-            if (StopRefresh || Time.time - itemrefreshlasttime <= 1)
+            if (StopRefresh || !OneSecondElapsed)
             {
                 return;
             }
-            itemrefreshlasttime = Time.time;
             RefreshProductStat();
             Dictionary<int, long[]> tempDiction = SumProduce;
             if (PlanetorSum && PlanetProduce != null && PlanetProduce.Count > 0)
@@ -1631,11 +1701,7 @@ namespace MoreStatInfo
         /// </summary>
         private void RefreshPlanet()
         {
-            if (Time.time - planetrefreshlasttime > 1)
-                planetrefreshlasttime = Time.time;
-            else
-                return;
-            if (GameMain.galaxy == null) return;
+            if (!OneSecondElapsed || GameMain.galaxy == null) return;
             planetinfoshow.Clear();
             unloadPlanetNum = 0;
             foreach (StarData sd in GameMain.galaxy.stars)
@@ -1694,12 +1760,31 @@ namespace MoreStatInfo
                             if (i == 30 && pd.data != null) { flag = false; break; }
                         }
                     }
+
                     if (searchcondition_TypeName != "" && pd.typeString != searchcondition_TypeName) flag = false;
                     if (flag)
                         planetinfoshow.Add(pd.id);
                 }
             }
-
+            if (_sortbyPlanetDataDis)
+            {
+                planetinfoshow.Sort((a, b) =>
+                {
+                    double result = PlayerToPlanetDis(GameMain.galaxy.PlanetById(a)) - PlayerToPlanetDis(GameMain.galaxy.PlanetById(b));
+                    if (result > 0)
+                    {
+                        return 1;
+                    }
+                    else if (result == 0)
+                    {
+                        return 0;
+                    }
+                    else
+                    {
+                        return -1;
+                    }
+                });
+            }
             if (SortbyPointProduct && Filtercondition)
             {
                 List<long> itemproduce = new List<long>();
@@ -2051,6 +2136,36 @@ namespace MoreStatInfo
                 }
             }
             return number;
+        }
+
+        private double PlayerToPlanetDis(PlanetData pd)
+        {
+            VectorLF3 vectorLF2 = pd.uPosition - GameMain.mainPlayer.uPosition;
+            double num2 = vectorLF2.magnitude - pd.realRadius - 60;
+            return num2 < 0 ? 0 : num2;
+        }
+
+        private string PlayerToPlanetDisTranslate(PlanetData pd)
+        {
+            double distanceNum = PlayerToPlanetDis(pd);
+            double magnitude = distanceNum + pd.realRadius + 60;
+            string format = "{0:0} m";
+            if (magnitude >= 24000000.0)
+            {
+                distanceNum /= 2400000.0;
+                format = "{0:0.000} LY";
+            }
+            else if (magnitude >= 2400000.0)
+            {
+                distanceNum /= 2400000.0;
+                format = "{0:0.0000} LY";
+            }
+            else if (magnitude >= 2000.0)
+            {
+                distanceNum /= 40000.0;
+                format = "{0:0.000} AU";
+            }
+            return string.Format(format, distanceNum);
         }
 
         private string GetWaterTypeText(int waterItemId)

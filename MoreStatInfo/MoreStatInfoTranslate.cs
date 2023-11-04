@@ -20,11 +20,12 @@ namespace MoreStatInfo
             TranslateDict.Add("潮汐锁定", "Tidal locking perpetual day and night");
             TranslateDict.Add("轨道共振1:2", "Orbital resonance 1:2");
             TranslateDict.Add("轨道共振1:4", "Orbital resonance 1:4");
+            TranslateDict.Add("距离玩家", "Distance from player");
             TranslateDict.Add("横躺自传", "Horizontal rotation");
             TranslateDict.Add("反向自传", "Reverse rotation");
             TranslateDict.Add("多卫星", "Satellite");
-            TranslateDict.Add("具有工厂", "Exist Factory");
-            TranslateDict.Add("不具有工厂", "No Factory");
+            TranslateDict.Add("工厂状态", "Factory Status");
+            TranslateDict.Add("有", "Existed");
             TranslateDict.Add("电力不足", "Insufficient power");
             TranslateDict.Add("产物筛选", "Item filter");
             TranslateDict.Add("一级原料", "rawmaterial");

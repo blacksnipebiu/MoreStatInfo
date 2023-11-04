@@ -6,12 +6,14 @@ namespace MoreStatInfo
 {
     internal class GUIDraw
     {
-        private bool english;
         private bool firstDraw;
         private bool RefreshBaseSize;
         private static GameObject ui_morestatinfopanel;
         public static Texture2D mytexture;
-        public static GUIStyle styleblue;
+        public static GUIStyle normalPlanetButtonStyle;
+        public static GUIStyle selectedPlanetButtonStyle;
+        public static GUIStyle stylenormalblue;
+        public static GUIStyle styleboldblue;
         public static GUIStyle styleyellow;
         public static GUIStyle styleitemname = null;
         public static GUIStyle buttonstyleyellow = null;
@@ -65,6 +67,9 @@ namespace MoreStatInfo
             }
         }
 
+        public GUIStyle emptyStyle;
+        public GUIStyle whiteStyle;
+
         public GUIDraw()
         {
             Init();
@@ -80,12 +85,18 @@ namespace MoreStatInfo
                     mytexture.SetPixel(i, j, new Color(0, 0, 0, 1));
             mytexture.Apply();
 
-            styleblue = new GUIStyle
+            styleboldblue = new GUIStyle
             {
                 fontStyle = FontStyle.Bold,
                 fontSize = 20
             };
-            styleblue.normal.textColor = new Color32(167, 255, 255, 255);
+            styleboldblue.normal.textColor = new Color32(167, 255, 255, 255);
+            stylenormalblue = new GUIStyle
+            {
+                fontStyle = FontStyle.Normal,
+                fontSize = 20
+            };
+            stylenormalblue.normal.textColor = new Color32(167, 255, 255, 255);
             styleyellow = new GUIStyle
             {
                 fontStyle = FontStyle.Bold,
@@ -110,17 +121,22 @@ namespace MoreStatInfo
                 temp = Math.Max(5, Math.Min(temp, 35));
                 BaseSize = temp;
             }
-            english = Localization.language != Language.zhCN;
-            switchwitdh = english ? 7 * heightdis : 4 * heightdis;
+            switchwitdh = Localization.language != Language.zhCN ? 7 * heightdis : 4 * heightdis;
             switchheight = heightdis * 10;
             if (styleitemname == null)
             {
+                emptyStyle = new GUIStyle();
+                whiteStyle = new GUIStyle();
+                whiteStyle.normal.background = Texture2D.whiteTexture;
                 styleitemname = new GUIStyle(GUI.skin.label);
                 styleitemname.normal.textColor = Color.white;
                 buttonstyleblue = new GUIStyle(GUI.skin.button);
-                buttonstyleblue.normal.textColor = styleblue.normal.textColor;
+                buttonstyleblue.normal.textColor = styleboldblue.normal.textColor;
                 buttonstyleyellow = new GUIStyle(GUI.skin.button);
                 buttonstyleyellow.normal.textColor = styleyellow.normal.textColor;
+                normalPlanetButtonStyle = new GUIStyle(GUI.skin.button);
+                selectedPlanetButtonStyle = new GUIStyle(GUI.skin.button);
+                selectedPlanetButtonStyle.normal.textColor = new Color32(215, 186, 245, 255);
             }
             if (RefreshBaseSize)
             {
@@ -130,8 +146,8 @@ namespace MoreStatInfo
                 GUI.skin.toggle.fontSize = BaseSize;
                 GUI.skin.textField.fontSize = BaseSize;
                 GUI.skin.textArea.fontSize = BaseSize;
-                buttonstyleblue.fontSize = GUI.skin.label.fontSize;
-                buttonstyleyellow.fontSize = GUI.skin.label.fontSize;
+                buttonstyleblue.fontSize = BaseSize;
+                buttonstyleyellow.fontSize = BaseSize;
             }
 
             UIPanelSet();
