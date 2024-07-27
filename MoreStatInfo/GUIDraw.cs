@@ -121,7 +121,7 @@ namespace MoreStatInfo
                 temp = Math.Max(5, Math.Min(temp, 35));
                 BaseSize = temp;
             }
-            switchwitdh = Localization.language != Language.zhCN ? 7 * heightdis : 4 * heightdis;
+            switchwitdh = MoreStatInfo.IsEnglish ? 7 * heightdis : 4 * heightdis;
             switchheight = heightdis * 10;
             if (styleitemname == null)
             {

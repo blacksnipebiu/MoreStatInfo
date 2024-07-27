@@ -15,8 +15,9 @@ namespace MoreStatInfo
     {
         public const string GUID = "cn.blacksnipe.dsp.MoreStatInfo";
         public const string NAME = "MoreStatInfo";
-        public const string VERSION = "1.4.2";
+        public const string VERSION = "1.4.5";
 
+        public static bool IsEnglish;
         private static GUIDraw guiDraw;
         private int unloadPlanetNum;
         private bool[] searchcondition_bool = new bool[40];
@@ -34,6 +35,7 @@ namespace MoreStatInfo
         private int windowmaxheight = 630;
         private int selectitemId;
         private static Dictionary<int, bool> Productsearchcondition = new Dictionary<int, bool>();
+        private static Dictionary<int, int[]> PlanetVeinCountPool = new Dictionary<int, int[]>();
         private bool firstStart = true;
         private bool StopRefresh;
 
@@ -80,6 +82,7 @@ namespace MoreStatInfo
         private bool _RemoteorLocal;
         private bool _sortbypointproduct;
         private bool _sortbyPlanetDataDis;
+        private bool _sortbyVeinCount;
 
 
         /// <summary>
@@ -278,6 +281,7 @@ namespace MoreStatInfo
             {
                 firstStart = false;
                 ItemList = new List<ItemProto>(LDB.items.dataArray);
+                PlanetVeinCountPool.Clear();
                 while (PlanetModelingManager.calPlanetReqList.Count > 0)
                 {
                     PlanetModelingManager.calPlanetReqList.Dequeue();
@@ -320,6 +324,7 @@ namespace MoreStatInfo
             RefreshAll();
             MainWindowShowFun();
             SwitchWindowShowFun();
+            RefreshPlanet();
             PlanetWindowShowFun();
             if (OneSecondElapsed)
             {
@@ -333,6 +338,7 @@ namespace MoreStatInfo
         /// </summary>
         private void MainWindowShowFun()
         {
+            IsEnglish = Localization.CurrentLanguage.glyph == 0;
             MoveWindow();
             Scaling_Window();
             GUI.DrawTexture(GUI.Window(20210821, GetMainWindowRect(), MainWindow, "统计面板".getTranslate() + "(" + VERSION + ")" + "ps:ctrl+↑↓"), mytexture);
@@ -456,6 +462,7 @@ namespace MoreStatInfo
                         for (int i = 1; i <= 14; i++)
                             searchcondition_bool[i] = GUILayout.Toggle(searchcondition_bool[i], searchchineseTranslate(i));
                         _sortbyPlanetDataDis = GUILayout.Toggle(_sortbyPlanetDataDis, "依照离玩家距离排序".getTranslate());
+                        _sortbyVeinCount = GUILayout.Toggle(_sortbyVeinCount, "依矿脉数量排序".getTranslate());
                         if (GUILayout.Button("取消所有条件".getTranslate()))
                         {
                             for (int i = searchcondition_bool.Length - 1; i >= 0; i--)
@@ -667,7 +674,7 @@ namespace MoreStatInfo
                 // 设置列宽度
                 int[] ColumnWidth = new int[11]
                 {
-                    Localization.language != Language.zhCN ? heightdis * 8 : heightdis * 4,
+                    IsEnglish ? heightdis * 8 : heightdis * 4,
                     heightdis * 4,
                     heightdis * 4,
                     heightdis * 4,
@@ -775,7 +782,6 @@ namespace MoreStatInfo
         {
             GUILayout.BeginArea(new Rect(0, 20, heightdis * 8 + 10, heightdis * 21));
 
-            RefreshPlanet();
             for (int i = (pdselectinfoindex - 1) * 20; i < pdselectinfoindex * 20 && i < planetinfoshow.Count; i++)
             {
                 GUIStyle style = normalPlanetButtonStyle;
@@ -1355,6 +1361,8 @@ namespace MoreStatInfo
                         {
                             continue;
                         }
+                        bool flag = lc.productive && !lc.forceAccMode;
+                        int num = (int)(lc.speedOverride * (1 + lc.extraSpeed * 0.1f / lc.speedOverride) * 3600 / lc.timeSpend);
                         for (int i = 0; i < rp.Items.Length; i++)
                         {
 
@@ -1364,10 +1372,14 @@ namespace MoreStatInfo
                                 PlanetComsumerDiction[pd.id][rp.Items[i]] = 0;
                             PlanetComsumerDiction[pd.id][rp.Items[i]]++;
 
-                            if (lc.extraSpeed == 0)
-                                PlanetRequireDiction[pd.id][rp.Items[i]] += rp.ItemCounts[i] * 3600.0f * lc.speedOverride / lc.speed / rp.TimeSpend;
+                            if (flag)
+                            {
+                                PlanetRequireDiction[pd.id][rp.Items[i]] += rp.ItemCounts[i] * num * 1f / (1f + lc.extraSpeed * 1f / (lc.speed * 10f));
+                            }
                             else
-                                PlanetRequireDiction[pd.id][rp.Items[i]] += rp.ItemCounts[i] * 3600.0f / rp.TimeSpend;
+                            {
+                                PlanetRequireDiction[pd.id][rp.Items[i]] += rp.ItemCounts[i] * num;
+                            }
                         }
                         for (int i = 0; i < rp.Results.Length; i++)
                         {
@@ -1377,10 +1389,7 @@ namespace MoreStatInfo
                                 PlanetProducerDiction[pd.id][rp.Results[i]] = 0;
                             PlanetProducerDiction[pd.id][rp.Results[i]]++;
 
-                            if (lc.extraSpeed == 0)
-                                PlanetProductDiction[pd.id][rp.Results[i]] += rp.ResultCounts[i] * 3600.0f * lc.speedOverride / lc.speed / rp.TimeSpend;
-                            else
-                                PlanetProductDiction[pd.id][rp.Results[i]] += rp.ResultCounts[i] * 36.0f * (100 + lc.extraSpeed * 10 / lc.speed) / rp.TimeSpend;
+                            PlanetProductDiction[pd.id][rp.Results[i]] += num;
                         }
                     }
                     float sum = 0;
@@ -1561,7 +1570,8 @@ namespace MoreStatInfo
                             }
                             float miningSpeedScale = GameMain.history.miningSpeedScale;
                             int pdId = pd.id;
-                            if (sc.name != null && sc.isStellar && (sc.name.Equals("Station_miner") || sc.name.Equals("星球矿机")))
+                            string scName = fs.factory.ReadExtraInfoOnEntity(sc.entityId);
+                            if (string.IsNullOrEmpty(scName) && sc.isStellar && (scName.Equals("Station_miner") || scName.Equals("星球矿机")))
                             {
                                 for (int i = 0; i < 5; i++)
                                 {
@@ -1785,6 +1795,50 @@ namespace MoreStatInfo
                     }
                 });
             }
+            if (_sortbyVeinCount)
+            {
+                planetinfoshow.Sort((a, b) =>
+                {
+                    var pd = GameMain.galaxy.PlanetById(a);
+                    var pd2 = GameMain.galaxy.PlanetById(b);
+                    int count1 = 0;
+                    int count2 = 0;
+                    for (int i = 1; i <= 14; i++)
+                    {
+                        if (!searchcondition_bool[i])
+                        {
+                            continue;
+                        }
+                        if (i <= 14)
+                        {
+                            int[] planetsveinSpotsSketch = veinSpotsSketch(pd);
+                            if (planetsveinSpotsSketch != null)
+                            {
+                                count1 += planetsveinSpotsSketch[i];
+                            }
+                            planetsveinSpotsSketch = veinSpotsSketch(pd2);
+                            if (planetsveinSpotsSketch != null)
+                            {
+                                count2 += planetsveinSpotsSketch[i];
+                            }
+                        }
+                    }
+                    int result = count2 - count1;
+                    if (result > 0)
+                    {
+                        return 1;
+                    }
+                    else if (result == 0)
+                    {
+                        return 0;
+                    }
+                    else
+                    {
+                        return -1;
+                    }
+                });
+            }
+
             if (SortbyPointProduct && Filtercondition)
             {
                 List<long> itemproduce = new List<long>();
@@ -1868,10 +1922,26 @@ namespace MoreStatInfo
         /// <returns></returns>
         public static int[] veinSpotsSketch(PlanetData planet)
         {
+            if (PlanetVeinCountPool.ContainsKey(planet.id))
+            {
+                return PlanetVeinCountPool[planet.id];
+            }
             if (planet.factory != null)
             {
                 int[] result = new int[20];
                 foreach (VeinData vd in planet.factory.veinPool)
+                {
+                    if (vd.id == 0) continue;
+                    result[(int)vd.type]++;
+                }
+                PlanetVeinCountPool.Add(planet.id, result);
+                return result;
+            }
+            else if (planet.data?.veinPool != null)
+            {
+                var rawdata = planet.data;
+                int[] result = new int[20];
+                foreach (VeinData vd in rawdata.veinPool)
                 {
                     if (vd.id == 0) continue;
                     result[(int)vd.type]++;
@@ -1897,87 +1967,83 @@ namespace MoreStatInfo
                 float p = 1f;
                 ESpectrType spectr = planet.star.spectr;
                 EStarType type = planet.star.type;
-                if (type == EStarType.MainSeqStar)
+                switch (type)
                 {
-                    if (spectr == ESpectrType.M)
-                    {
+                    case EStarType.MainSeqStar:
+                        switch (spectr)
+                        {
+                            case ESpectrType.M:
+                                p = 2.5f;
+                                break;
+                            case ESpectrType.K:
+                                p = 1f;
+                                break;
+                            case ESpectrType.G:
+                                p = 0.7f;
+                                break;
+                            case ESpectrType.F:
+                                p = 0.6f;
+                                break;
+                            case ESpectrType.A:
+                                p = 1f;
+                                break;
+                            case ESpectrType.B:
+                                p = 0.4f;
+                                break;
+                            case ESpectrType.O:
+                                p = 1.6f;
+                                break;
+                        }
+                        break;
+                    case EStarType.GiantStar:
                         p = 2.5f;
-                    }
-                    else if (spectr == ESpectrType.K)
-                    {
-                        p = 1f;
-                    }
-                    else if (spectr == ESpectrType.G)
-                    {
-                        p = 0.7f;
-                    }
-                    else if (spectr == ESpectrType.F)
-                    {
-                        p = 0.6f;
-                    }
-                    else if (spectr == ESpectrType.A)
-                    {
-                        p = 1f;
-                    }
-                    else if (spectr == ESpectrType.B)
-                    {
-                        p = 0.4f;
-                    }
-                    else if (spectr == ESpectrType.O)
-                    {
-                        p = 1.6f;
-                    }
-                }
-                else if (type == EStarType.GiantStar)
-                {
-                    p = 2.5f;
-                }
-                else if (type == EStarType.WhiteDwarf)
-                {
-                    p = 3.5f;
-                    array[9] += 2;
-                    int num2 = 1;
-                    while (num2 < 12 && dotNet35Random.NextDouble() < 0.44999998807907104)
-                    {
-                        array[9]++;
-                        num2++;
-                    }
-                    array[10] += 2;
-                    int num3 = 1;
-                    while (num3 < 12 && dotNet35Random.NextDouble() < 0.44999998807907104)
-                    {
-                        array[10]++;
-                        num3++;
-                    }
-                    array[12]++;
-                    int num4 = 1;
-                    while (num4 < 12 && dotNet35Random.NextDouble() < 0.5)
-                    {
+                        break;
+                    case EStarType.WhiteDwarf:
+                        p = 3.5f;
+                        array[9] += 2;
+                        int num2 = 1;
+                        while (num2 < 12 && dotNet35Random.NextDouble() < 0.44999998807907104)
+                        {
+                            array[9]++;
+                            num2++;
+                        }
+                        array[10] += 2;
+                        int num3 = 1;
+                        while (num3 < 12 && dotNet35Random.NextDouble() < 0.44999998807907104)
+                        {
+                            array[10]++;
+                            num3++;
+                        }
                         array[12]++;
-                        num4++;
-                    }
-                }
-                else if (type == EStarType.NeutronStar)
-                {
-                    p = 4.5f;
-                    array[14]++;
-                    int num5 = 1;
-                    while (num5 < 12 && dotNet35Random.NextDouble() < 0.6499999761581421)
-                    {
+                        int num4 = 1;
+                        while (num4 < 12 && dotNet35Random.NextDouble() < 0.5)
+                        {
+                            array[12]++;
+                            num4++;
+                        }
+                        break;
+
+                    case EStarType.NeutronStar:
+                        p = 4.5f;
                         array[14]++;
-                        num5++;
-                    }
-                }
-                else if (type == EStarType.BlackHole)
-                {
-                    p = 5f;
-                    array[14]++;
-                    int num6 = 1;
-                    while (num6 < 12 && dotNet35Random.NextDouble() < 0.6499999761581421)
-                    {
+                        int num5 = 1;
+                        while (num5 < 12 && dotNet35Random.NextDouble() < 0.6499999761581421)
+                        {
+                            array[14]++;
+                            num5++;
+                        }
+                        break;
+
+                    case EStarType.BlackHole:
+                        p = 5f;
                         array[14]++;
-                        num6++;
-                    }
+                        int num6 = 1;
+                        while (num6 < 12 && dotNet35Random.NextDouble() < 0.6499999761581421)
+                        {
+                            array[14]++;
+                            num6++;
+                        }
+                        break;
                 }
                 for (int i = 0; i < themeProto.RareVeins.Length; i++)
                 {
@@ -1995,6 +2061,7 @@ namespace MoreStatInfo
                         }
                     }
                 }
+                PlanetVeinCountPool.Add(planet.id, array);
                 return array;
             }
             return null;

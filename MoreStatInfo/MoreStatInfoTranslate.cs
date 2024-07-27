@@ -5,7 +5,7 @@ namespace MoreStatInfo
     public static class MoreStatInfoTranslate
     {
         private static Dictionary<string, string> TranslateDict = new Dictionary<string, string>();
-        public static string getTranslate(this string s) => Localization.language != Language.zhCN && TranslateDict.ContainsKey(s) && TranslateDict[s].Length > 0 ? TranslateDict[s] : s;
+        public static string getTranslate(this string s) => MoreStatInfo.IsEnglish && TranslateDict.ContainsKey(s) && TranslateDict[s].Length > 0 ? TranslateDict[s] : s;
         public static void regallTranslate()
         {
             TranslateDict.Clear();
