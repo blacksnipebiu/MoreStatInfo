@@ -5,7 +5,55 @@ namespace MoreStatInfo
     public static class MoreStatInfoTranslate
     {
         private static Dictionary<string, string> TranslateDict = new Dictionary<string, string>();
-        public static string getTranslate(this string s) => MoreStatInfo.IsEnglish && TranslateDict.ContainsKey(s) && TranslateDict[s].Length > 0 ? TranslateDict[s] : s;
+
+        public static string GetItemText(this int itemId)
+        {
+            string waterType = "无".GetTranslate();
+            if (itemId < 0)
+            {
+                switch (itemId)
+                {
+                    case -2:
+                        waterType = "冰".Translate();
+                        break;
+
+                    case -1:
+                        waterType = "熔岩".Translate();
+                        break;
+
+                    default:
+                        waterType = "未知".Translate();
+                        break;
+                }
+            }
+            else
+            {
+                var wateritem = LDB.items.Select(itemId);
+                if (wateritem != null)
+                    waterType = wateritem.name;
+            }
+            return waterType;
+        }
+
+        public static string GetSearchchinese(this int Index)
+        {
+            if (0 < Index && Index < 15) return ItemProto.itemProtoById[LDB.veins.Select(Index).MiningItem].name;
+            if (Index == 15) return "可燃冰".GetTranslate();
+            if (Index == 16) return "氢".GetTranslate();
+            if (Index == 17) return "重氢".GetTranslate();
+            if (Index == 18) return "水".GetTranslate();
+            if (Index == 19) return "硫酸".GetTranslate();
+            if (Index == 20) return "潮汐锁定".GetTranslate();
+            if (Index == 21) return "轨道共振1:2".GetTranslate();
+            if (Index == 22) return "轨道共振1:4".GetTranslate();
+            if (Index == 23) return "横躺自传".GetTranslate();
+            if (Index == 24) return "反向自传".GetTranslate();
+            if (Index == 25) return "多卫星".GetTranslate();
+            return "";
+        }
+
+        public static string GetTranslate(this string s) => MoreStatInfo.IsEnglish && TranslateDict.ContainsKey(s) && TranslateDict[s].Length > 0 ? TranslateDict[s] : s;
+
         public static void regallTranslate()
         {
             TranslateDict.Clear();
@@ -80,8 +128,6 @@ namespace MoreStatInfo
             TranslateDict.Add("未加载星球", "Unloaded Planets");
             TranslateDict.Add("个星球加载中", "Unloaded Planets");
             TranslateDict.Add("未选择", "UnSelected");
-
-
         }
     }
 }
