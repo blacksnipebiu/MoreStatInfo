@@ -429,51 +429,13 @@ namespace MoreStatInfo
         public void SortItemIndex(long[][] itemsmap, bool[] productexist, int columnnum, int sortrules)
         {
             iteminfoshow.Clear();
-            int itemsmapcount = 0;
             for (int i = 0; i < ItemProto.itemIds.Length; i++)
             {
                 var itemId = ItemProto.itemIds[i];
-                if (productexist[itemId])
+                if (!productexist[itemId])
                 {
-                    iteminfoshow.Add(itemId);
+                    continue;
                 }
-            }
-            if (sortrules == 0)
-            {
-                return;
-            }
-            if (columnnum == 0)
-            {
-                if (sortrules == 1)
-                {
-                    iteminfoshow.Reverse();
-                }
-                return;
-            }
-            columnnum--;
-            for (int i = 0; i < itemsmapcount; i++)
-            {
-                var itemId = iteminfoshow[i];
-                for (int j = i + 1; j < itemsmapcount; j++)
-                {
-                    var secondItemId = iteminfoshow[j];
-                    if (sortrules == 1)
-                    {
-                        if (itemsmap[itemId][columnnum] > itemsmap[secondItemId][columnnum])
-                        {
-                            (iteminfoshow[i], iteminfoshow[j]) = (iteminfoshow[j], iteminfoshow[i]);
-                        }
-                    }
-                    else
-                    {
-                        if (itemsmap[itemId][columnnum] < itemsmap[secondItemId][columnnum])
-                        {
-                            (iteminfoshow[i], iteminfoshow[j]) = (iteminfoshow[j], iteminfoshow[i]);
-                        }
-                    }
-                }
-                itemId = iteminfoshow[i];
-                if (itemId == 0) break;
                 if (itemId == 1030 || itemId == 1031) continue;
                 if ((itemId >= 1000 && itemId < 1030 || itemId == 1208) && !rawmaterial) continue;
                 if ((itemId > 1100 && itemId < 1200) && !secondrawmaterial) continue;
@@ -490,6 +452,41 @@ namespace MoreStatInfo
                 if (theoryproducelimittoggle && (!productexist[itemId] || itemsmap[itemId][2] <= theoryproducelowerlimit)) continue;
                 if (theorycomsumelimittoggle && (!productexist[itemId] || itemsmap[itemId][3] <= theorycomsumelowerlimit)) continue;
                 iteminfoshow.Add(itemId);
+            }
+            if (sortrules == 0)
+            {
+                return;
+            }
+            if (columnnum == 0)
+            {
+                if (sortrules == 1)
+                {
+                    iteminfoshow.Reverse();
+                }
+                return;
+            }
+            columnnum--;
+            int itemsmapcount = iteminfoshow.Count;
+            for (int i = 0; i < itemsmapcount; i++)
+            {
+                for (int j = i + 1; j < itemsmapcount; j++)
+                {
+                    var secondItemId = iteminfoshow[j];
+                    if (sortrules == 1)
+                    {
+                        if (itemsmap[iteminfoshow[i]][columnnum] > itemsmap[secondItemId][columnnum])
+                        {
+                            (iteminfoshow[i], iteminfoshow[j]) = (iteminfoshow[j], iteminfoshow[i]);
+                        }
+                    }
+                    else
+                    {
+                        if (itemsmap[iteminfoshow[i]][columnnum] < itemsmap[secondItemId][columnnum])
+                        {
+                            (iteminfoshow[i], iteminfoshow[j]) = (iteminfoshow[j], iteminfoshow[i]);
+                        }
+                    }
+                }
             }
         }
 

@@ -357,73 +357,74 @@ namespace MoreStatInfo
         /// <param name="fs"></param>
         void StationComponentCollect(FactorySystem fs)
         {
-            int tempi = 0;
             foreach (StationComponent sc in fs.factory.transport.stationPool)
             {
-                if (sc != null && sc.entityId > 0)
+                if (sc == null || sc.entityId <= 0)
                 {
-                    tempi++;
-                    for (int i = 0; i < sc.storage.Length; i++)
+                    continue;
+                }
+                for (int i = 0; i < sc.storage.Length; i++)
+                {
+                    var storage = sc.storage[i];
+                    int itemId = storage.itemId;
+                    if (itemId <= 0)
                     {
-                        int itemId = sc.storage[i].itemId;
-                        if (itemId <= 0)
+                        continue;
+                    }
+                    ProductCount[itemId][6] += storage.count;
+                    if (AllStatInfo.RemoteorLocal)
+                    {
+                        if (sc.isCollector || sc.isStellar)
                         {
-                            continue;
-                        }
-                        ProductCount[itemId][6] += sc.storage[i].count;
-                        if (!AllStatInfo.RemoteorLocal)
-                        {
-                            if (sc.storage[i].localLogic == ELogisticStorage.Supply)
-                                ProductCount[itemId][7] += sc.storage[i].count;
-                            else if (sc.storage[i].localLogic == ELogisticStorage.Demand)
-                                ProductCount[itemId][8] += sc.storage[i].count;
+                            if (storage.remoteLogic == ELogisticStorage.Supply)
+                                ProductCount[itemId][7] += storage.count;
+                            else if (storage.remoteLogic == ELogisticStorage.Demand)
+                                ProductCount[itemId][8] += storage.count;
                             else
-                                ProductCount[itemId][9] += sc.storage[i].count;
-                        }
-                        else if (AllStatInfo.RemoteorLocal && (sc.isCollector || sc.isStellar))
-                        {
-                            if (sc.storage[i].remoteLogic == ELogisticStorage.Supply)
-                                ProductCount[itemId][7] += sc.storage[i].count;
-                            else if (sc.storage[i].remoteLogic == ELogisticStorage.Demand)
-                                ProductCount[itemId][8] += sc.storage[i].count;
-                            else
-                                ProductCount[itemId][9] += sc.storage[i].count;
+                                ProductCount[itemId][9] += storage.count;
                         }
                     }
-                    float miningSpeedScale = GameMain.history.miningSpeedScale;
-                    int pdId = pd.id;
-                    string scName = fs.factory.ReadExtraInfoOnEntity(sc.entityId);
-
-                    //星球矿机产量适配
-                    //if (string.IsNullOrEmpty(scName) && sc.isStellar && (scName.Equals("Station_miner") || scName.Equals("星球矿机")))
-                    //{
-                    //    for (int i = 0; i < 5; i++)
-                    //    {
-                    //        int itemId = sc.storage[i].itemId;
-                    //        if (itemId <= 0)
-                    //        {
-                    //            continue;
-                    //        }
-                    //        ProducerDiction[itemId]++;
-                    //        if (pd.waterItemId == itemId)
-                    //            TheoryProductDiction[itemId] += (long)(1800 * miningSpeedScale);
-                    //        else
-                    //            TheoryProductDiction[itemId] += itemId != 1007 ? (int)(getVeinnumber(itemId, pdId) * miningSpeedScale) / 2 * 60 : (int)(getVeinnumber(itemId, pdId) * miningSpeedScale) * 60;
-                    //    }
-                    //}
-                    if (sc.collectionPerTick != null && sc.isCollector)
+                    else
                     {
-                        PrefabDesc prefabDesc = LDB.items.Select(ItemProto.stationCollectorId).prefabDesc;
-                        double collectorsWorkCost = prefabDesc.workEnergyPerTick * 60.0;
-                        collectorsWorkCost /= prefabDesc.stationCollectSpeed;
-                        double gasTotalHeat = pd.gasTotalHeat;
-                        float collectSpeedRate = gasTotalHeat - collectorsWorkCost <= 0.0 ? 1f : (float)((miningSpeedScale * gasTotalHeat - collectorsWorkCost) / (gasTotalHeat - collectorsWorkCost));
-                        for (int index = 0; index < sc.collectionIds.Length; ++index)
-                        {
-                            int itemId = sc.storage[index].itemId;
-                            TheoryProductDiction[itemId] += (long)(sc.collectionPerTick[index] * collectSpeedRate * 3600);
-                            ProductCount[itemId][4]++;
-                        }
+                        if (storage.localLogic == ELogisticStorage.Supply)
+                            ProductCount[itemId][7] += storage.count;
+                        else if (storage.localLogic == ELogisticStorage.Demand)
+                            ProductCount[itemId][8] += storage.count;
+                        else
+                            ProductCount[itemId][9] += storage.count;
+                    }
+                }
+                float miningSpeedScale = GameMain.history.miningSpeedScale;
+
+                //星球矿机产量适配
+                //if (string.IsNullOrEmpty(scName) && sc.isStellar && (scName.Equals("Station_miner") || scName.Equals("星球矿机")))
+                //{
+                //    for (int i = 0; i < 5; i++)
+                //    {
+                //        int itemId = sc.storage[i].itemId;
+                //        if (itemId <= 0)
+                //        {
+                //            continue;
+                //        }
+                //        ProducerDiction[itemId]++;
+                //        if (pd.waterItemId == itemId)
+                //            TheoryProductDiction[itemId] += (long)(1800 * miningSpeedScale);
+                //        else
+                //            TheoryProductDiction[itemId] += itemId != 1007 ? (int)(getVeinnumber(itemId, pdId) * miningSpeedScale) / 2 * 60 : (int)(getVeinnumber(itemId, pdId) * miningSpeedScale) * 60;
+                //    }
+                //}
+                if (sc.collectionPerTick != null && sc.isCollector)
+                {
+                    PrefabDesc prefabDesc = LDB.items.Select(ItemProto.stationCollectorId).prefabDesc;
+                    double collectorsWorkCost = prefabDesc.workEnergyPerTick * 60.0;
+                    collectorsWorkCost /= prefabDesc.stationCollectSpeed;
+                    double gasTotalHeat = pd.gasTotalHeat;
+                    float collectSpeedRate = gasTotalHeat - collectorsWorkCost <= 0.0 ? 1f : (float)((miningSpeedScale * gasTotalHeat - collectorsWorkCost) / (gasTotalHeat - collectorsWorkCost));
+                    for (int index = 0; index < sc.collectionIds.Length; ++index)
+                    {
+                        int itemId = sc.storage[index].itemId;
+                        TheoryProductDiction[itemId] += (long)(sc.collectionPerTick[index] * collectSpeedRate * 3600);
+                        ProductCount[itemId][4]++;
                     }
                 }
             }
@@ -447,8 +448,8 @@ namespace MoreStatInfo
                         }
                         for (int i = 0; i < sc.grids.Length; i++)
                         {
-                            int itemId;
-                            if ((itemId = sc.grids[i].itemId) <= 0)
+                            int itemId = sc.grids[i].itemId;
+                            if (itemId <= 0)
                             {
                                 continue;
                             }

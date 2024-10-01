@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 using MoreStatInfo.Model;
+using System.Collections;
 using System.Threading;
 using UnityEngine;
 
@@ -11,7 +12,7 @@ namespace MoreStatInfo
     {
         public const string GUID = "cn.blacksnipe.dsp.MoreStatInfo";
         public const string NAME = "MoreStatInfo";
-        public const string VERSION = "1.5.2";
+        public const string VERSION = "1.5.4";
         public static AllStatInfo allstatinfo;
         public static bool IsEnglish;
         public static bool OneSecondElapsed;
@@ -20,6 +21,15 @@ namespace MoreStatInfo
         private static ConfigEntry<KeyboardShortcut> QuickKey;
         private bool firstStart = true;
         private bool IsFirstMainMenu;
+
+        IEnumerator OneSecondCheck()
+        {
+            while (true)
+            {
+                OneSecondElapsed = true;
+                yield return new WaitForSeconds(1f);
+            }
+        }
 
         void OnGUI()
         {
@@ -36,14 +46,7 @@ namespace MoreStatInfo
 
             MoreStatInfoTranslate.regallTranslate();
             Debug.Log("MoreStatInfo Start");
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
-                while (true)
-                {
-                    OneSecondElapsed = true;
-                    Thread.Sleep(1000);
-                }
-            });
+            StartCoroutine(OneSecondCheck());
         }
 
         void Update()
@@ -60,7 +63,7 @@ namespace MoreStatInfo
             if (!GameMain.instance.running)
             {
                 firstStart = false;
-                guiDraw.ShowGUIWindow = false;
+                //guiDraw.ShowGUIWindow = false;
                 while (PlanetModelingManager.calPlanetReqList.Count > 0)
                 {
                     PlanetModelingManager.calPlanetReqList.Dequeue();
