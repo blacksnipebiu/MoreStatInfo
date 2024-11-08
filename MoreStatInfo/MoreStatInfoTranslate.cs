@@ -57,9 +57,10 @@ namespace MoreStatInfo
         public static void regallTranslate()
         {
             TranslateDict.Clear();
+            TranslateDict.Add("统计面板", "StatPannel");
+            TranslateDict.Add("导出数据", "Output Data");
             TranslateDict.Add("放电功率", "Discharging power");
             TranslateDict.Add("充电功率", "Charging power");
-            TranslateDict.Add("统计面板", "Stat Pannel");
             TranslateDict.Add("可燃冰", "Fire ice");
             TranslateDict.Add("氢", "Hydrogen");
             TranslateDict.Add("重氢", "Deuterium");

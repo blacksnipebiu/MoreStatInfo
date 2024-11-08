@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace MoreStatInfo
 {
-    public struct PlanetStatInfo
+    public class PlanetStatInfo
     {
         public bool Existfactory;
         public bool IsUsed;
@@ -26,12 +26,14 @@ namespace MoreStatInfo
         public bool[] ProductExist;
         public Dictionary<int, float> TheoryProductDiction;
         public Dictionary<int, float> TheoryRequireDiction;
+        public long[] veinAmounts;
         public bool Lackofelectricity => Powerenergyinfoshow[0] + Powerenergyinfoshow[3] > Powerenergyinfoshow[1];
 
         public void ClearAll()
         {
             productCursor = 0;
             Array.Clear(Powerenergyinfoshow, 0, 5);
+            Array.Clear(veinAmounts, 0, 64);
             Array.Clear(ProductExist, 0, 12000);
             Existfactory = false;
             for (int i = 0; i < ItemProto.itemIds.Length; i++)
@@ -50,21 +52,24 @@ namespace MoreStatInfo
                 return;
             }
             ClearAll();
-            FactoryProductionStat factoryProduction = GameMain.data.statistics.production.factoryStatPool[pd.factory.index];
-            if (factoryProduction == null) return;
-            int[] itemIds = ItemProto.itemIds;
-            for (int i = 0; i < itemIds.Length; i++)
+            var factoryProduction = GameMain.data.statistics.production.factoryStatPool[pd.factory.index];
+            if (factoryProduction != null)
             {
-                int itemId = itemIds[i];
-                int productPoolIndex = factoryProduction.productIndices[itemId];
-                if (productPoolIndex == 0)
+                int[] itemIds = ItemProto.itemIds;
+                for (int i = 0; i < itemIds.Length; i++)
                 {
-                    continue;
+                    int itemId = itemIds[i];
+                    int productPoolIndex = factoryProduction.productIndices[itemId];
+                    if (productPoolIndex == 0)
+                    {
+                        continue;
+                    }
+                    productCursor++;
+                    ProductExist[itemId] = true;
+                    ProductCount[itemId][0] += factoryProduction.productPool[productPoolIndex].total[1];
+                    ProductCount[itemId][1] += factoryProduction.productPool[productPoolIndex].total[8];
                 }
-                productCursor++;
-                ProductExist[itemId] = true;
-                ProductCount[itemId][0] += factoryProduction.productPool[productPoolIndex].total[1];
-                ProductCount[itemId][1] += factoryProduction.productPool[productPoolIndex].total[8];
+                PowerenergyinfoshowCollect(factoryProduction);
             }
             FactorySystem fs = pd.factory.factorySystem;
             Existfactory = fs.factory.entityCount > 0;
@@ -78,12 +83,16 @@ namespace MoreStatInfo
             PowerExchangerComponentCollect(fs);
             StorageInfoCollect(fs);
             StationComponentCollect(fs);
-            PowerenergyinfoshowCollect(factoryProduction);
             for (int i = 0; i < ItemProto.itemIds.Length; i++)
             {
                 int itemId = ItemProto.itemIds[i];
                 ProductCount[itemId][2] = (long)TheoryProductDiction[itemId];
                 ProductCount[itemId][3] = (long)TheoryRequireDiction[itemId];
+                if (ProductCount[itemId][2] > 0 || ProductCount[itemId][3] > 0)
+                {
+                    productCursor++;
+                    ProductExist[itemId] = true;
+                }
             }
         }
 
@@ -98,6 +107,7 @@ namespace MoreStatInfo
             Powerenergyinfoshow = new long[5];
             ProductCount = new long[12000][];
             ProductExist = new bool[12000];
+            veinAmounts = new long[64];
             for (int i = 0; i < ItemProto.itemIds.Length; i++)
             {
                 var itemId = ItemProto.itemIds[i];
@@ -472,22 +482,14 @@ namespace MoreStatInfo
             }
         }
 
+        /// <summary>
+        /// 计算矿产信息
+        /// </summary>
         void VeinInfoCal()
         {
+            VeinSearch.CalcVeinAmounts(pd);
+            Array.Copy(VeinSearch.veinAmounts, veinAmounts, 64);
             planetsveinSpotsSketch = VeinSearch.veinSpotsSketch(pd);
-        }
-    }
-
-    public static class PlanetStatInfoExtension
-    {
-        public static bool ExistFactory(this PlanetData pd)
-        {
-            return MoreStatInfo.allstatinfo.planetstatinfoDic[pd.id].Existfactory;
-        }
-
-        public static PlanetStatInfo GetPlanetStatInfo(this PlanetData pd)
-        {
-            return MoreStatInfo.allstatinfo.planetstatinfoDic[pd.id];
         }
     }
 }

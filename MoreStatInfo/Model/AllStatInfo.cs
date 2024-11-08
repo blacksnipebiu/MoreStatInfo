@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace MoreStatInfo.Model
 {
@@ -13,6 +14,10 @@ namespace MoreStatInfo.Model
         public PanelMode CurPanelMode;
         public GalaxyData galaxyData;
         public PlanetStatInfo[] planetstatinfoDic;
+
+        /// <summary>
+        /// 0是发电性能 1是耗电需求 2是总耗能 3是放电功率 4是充电功率
+        /// </summary>
         public long[] Powerenergyinfoshow;
 
         /// <summary>
@@ -118,6 +123,7 @@ namespace MoreStatInfo.Model
 
         public void Collect(GalaxyData galaxyData)
         {
+            PlanetLoad.LoadPlanetTypeForGalaxy(galaxyData);
             Array.Clear(planetstatinfoDic, 0, planetstatinfoDic.Length);
             this.galaxyData = galaxyData;
             starStatInfos = new StarStatInfo[galaxyData.starCount];
@@ -125,11 +131,12 @@ namespace MoreStatInfo.Model
             {
                 var sd = galaxyData.stars[i];
                 starStatInfos[i] = new StarStatInfo();
-                starStatInfos[i].Init();
-                starStatInfos[i].Collect(sd);
-                for (int j = 0; j < starStatInfos[i].planetStatInfos.Length; j++)
+                StarStatInfo starStatinfo = starStatInfos[i];
+                starStatinfo.Init();
+                starStatinfo.Collect(sd);
+                for (int j = 0; j < starStatinfo.planetStatInfos.Length; j++)
                 {
-                    ref PlanetStatInfo planetstatinfo = ref starStatInfos[i].planetStatInfos[j];
+                    PlanetStatInfo planetstatinfo = starStatinfo.planetStatInfos[j];
                     if (planetstatinfo.pd.id >= planetstatinfoDic.Length)
                     {
                         Array.Resize(ref planetstatinfoDic, planetstatinfoDic.Length + 100);
@@ -146,7 +153,7 @@ namespace MoreStatInfo.Model
                 case PanelMode.GalaxyStatInfo:
                     for (int i = 0; i < starStatInfos.Length; i++)
                     {
-                        ref StarStatInfo starStatinfo = ref starStatInfos[i];
+                        StarStatInfo starStatinfo = starStatInfos[i];
                         starStatinfo.Collect();
                     }
                     break;
@@ -159,7 +166,7 @@ namespace MoreStatInfo.Model
                         {
                             continue;
                         }
-                        ref PlanetStatInfo planetStatinfo = ref planetstatinfoDic[planetId];
+                        PlanetStatInfo planetStatinfo = planetstatinfoDic[planetId];
                         planetStatinfo.Collect();
                     }
                     break;
@@ -169,7 +176,7 @@ namespace MoreStatInfo.Model
                     {
                         break;
                     }
-                    ref PlanetStatInfo planetStatinfo2 = ref planetstatinfoDic[TargetPlanetId];
+                    PlanetStatInfo planetStatinfo2 = planetstatinfoDic[TargetPlanetId];
                     planetStatinfo2.Collect();
                     break;
             }

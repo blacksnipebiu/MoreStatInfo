@@ -1,9 +1,14 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 using MoreStatInfo.Model;
+using System;
 using System.Collections;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
 using System.Threading;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace MoreStatInfo
 {
@@ -12,7 +17,7 @@ namespace MoreStatInfo
     {
         public const string GUID = "cn.blacksnipe.dsp.MoreStatInfo";
         public const string NAME = "MoreStatInfo";
-        public const string VERSION = "1.5.4";
+        public const string VERSION = "1.5.7";
         public static AllStatInfo allstatinfo;
         public static bool IsEnglish;
         public static bool OneSecondElapsed;
@@ -33,10 +38,11 @@ namespace MoreStatInfo
 
         void OnGUI()
         {
-            if (IsFirstMainMenu && guiDraw.ShowGUIWindow)
+            if (!IsFirstMainMenu)
             {
-                guiDraw.Draw();
+                return;
             }
+            guiDraw.Draw();
         }
 
         void Start()
@@ -84,6 +90,10 @@ namespace MoreStatInfo
                 {
                     guiDraw.ShowGUIWindow = !guiDraw.ShowGUIWindow;
                 }
+            }
+
+            if (Input.GetKeyDown(KeyCode.F10))
+            {
             }
         }
     }

@@ -1,6 +1,7 @@
 ﻿using MoreStatInfo.Utils;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -357,6 +358,11 @@ namespace MoreStatInfo
                 RefreshFontSize();
             }
 
+            if (!ShowGUIWindow)
+            {
+                return;
+            }
+
             PanelMaskWidth = MainWindowWidth;
             SwitchWindowShowFun();
             MainWindowShowFun();
@@ -377,7 +383,7 @@ namespace MoreStatInfo
                     {
                         panelMode = PanelMode.MultiplePlanetStatInfo;
                     }
-                    else
+                    else if (pointPlanetId != 0)
                     {
                         panelMode = PanelMode.TargetSinglePlanetStatInfo;
                     }
@@ -653,45 +659,48 @@ namespace MoreStatInfo
                 foreach (PlanetData pd in sd.planets)
                 {
                     unloadPlanetNum += pd.data == null && pd.factory == null ? 1 : 0;
+                    var statinfo = allstatinfo.planetstatinfoDic[pd.id];
+
                     if (PlanetorSum)
                     {
-                        if (!RefreshPlanetinfo && pd.GetPlanetStatInfo().productCursor == 0)
+                        if (!RefreshPlanetinfo && statinfo.productCursor == 0)
                         {
                             continue;
                         }
-                        if (Refreshfactoryinfo && pd.factory != null && !pd.ExistFactory())
+                        if (Refreshfactoryinfo && !statinfo.Existfactory)
                         {
                             continue;
                         }
                     }
                     if (Filtercondition || Refreshfactoryinfo)
                     {
-                        if (!pd.ExistFactory()) continue;
+                        if (!statinfo.Existfactory) continue;
                         if (!CheckProductCondition(pd.id)) continue;
                     }
                     bool flag = true;
-                    for (int i = 1; i <= 30; i++)
+                    for (int i = 1; i <= 30 && flag; i++)
                     {
-                        if (searchcondition_bool[i])
+                        if (!searchcondition_bool[i])
                         {
-                            if (i <= 14 && pd.GetPlanetStatInfo().planetsveinSpotsSketch[i] == 0) { flag = false; break; }
-                            if (i == 15 && ((pd.gasItems == null && pd.orbitAroundPlanet == null) || (pd.gasItems != null && (pd.gasItems[0] != 1011 && pd.gasItems[1] != 1011)) || (pd.orbitAroundPlanet != null && (pd.orbitAroundPlanet.gasItems[0] != 1011 && pd.orbitAroundPlanet.gasItems[1] != 1011)))) { flag = false; break; }
-                            if (i == 16 && ((pd.gasItems == null && pd.orbitAroundPlanet == null) || (pd.gasItems != null && (pd.gasItems[0] != 1120 && pd.gasItems[1] != 1120)) || (pd.orbitAroundPlanet != null && (pd.orbitAroundPlanet.gasItems[0] != 1120 && pd.orbitAroundPlanet.gasItems[1] != 1120)))) { flag = false; break; }
-                            if (i == 17 && ((pd.gasItems == null && pd.orbitAroundPlanet == null) || (pd.gasItems != null && (pd.gasItems[0] != 1121 && pd.gasItems[1] != 1121)) || (pd.orbitAroundPlanet != null && (pd.orbitAroundPlanet.gasItems[0] != 1121 && pd.orbitAroundPlanet.gasItems[1] != 1121)))) { flag = false; break; }
-                            if (i == 18 && pd.waterItemId != 1000) { flag = false; break; }
-                            if (i == 19 && pd.waterItemId != 1116) { flag = false; break; }
-                            if (i == 20 && pd.singularity != EPlanetSingularity.TidalLocked) { flag = false; break; }
-                            if (i == 21 && pd.singularity != EPlanetSingularity.TidalLocked2) { flag = false; break; }
-                            if (i == 22 && pd.singularity != EPlanetSingularity.TidalLocked4) { flag = false; break; }
-                            if (i == 23 && pd.singularity != EPlanetSingularity.LaySide) { flag = false; break; }
-                            if (i == 24 && pd.singularity != EPlanetSingularity.ClockwiseRotate) { flag = false; break; }
-                            if (i == 25 && pd.singularity != EPlanetSingularity.MultipleSatellites) { flag = false; break; }
-                            if (i == 26 && !pd.ExistFactory()) { flag = false; break; }
-                            if (i == 27 && pd.ExistFactory()) { flag = false; break; }
-                            if (i == 28 && allstatinfo.planetstatinfoDic[pd.id].Lackofelectricity) { flag = false; break; }
-                            if (i == 29 && pd.data == null) { flag = false; break; }
-                            if (i == 30 && pd.data != null) { flag = false; break; }
+                            continue;
                         }
+                        if (i <= 14 && statinfo.planetsveinSpotsSketch[i] == 0) flag = false;
+                        if (i == 15 && ((pd.gasItems == null && pd.orbitAroundPlanet == null) || (pd.gasItems != null && (pd.gasItems[0] != 1011 && pd.gasItems[1] != 1011)) || (pd.orbitAroundPlanet != null && (pd.orbitAroundPlanet.gasItems[0] != 1011 && pd.orbitAroundPlanet.gasItems[1] != 1011)))) flag = false;
+                        if (i == 16 && ((pd.gasItems == null && pd.orbitAroundPlanet == null) || (pd.gasItems != null && (pd.gasItems[0] != 1120 && pd.gasItems[1] != 1120)) || (pd.orbitAroundPlanet != null && (pd.orbitAroundPlanet.gasItems[0] != 1120 && pd.orbitAroundPlanet.gasItems[1] != 1120)))) flag = false;
+                        if (i == 17 && ((pd.gasItems == null && pd.orbitAroundPlanet == null) || (pd.gasItems != null && (pd.gasItems[0] != 1121 && pd.gasItems[1] != 1121)) || (pd.orbitAroundPlanet != null && (pd.orbitAroundPlanet.gasItems[0] != 1121 && pd.orbitAroundPlanet.gasItems[1] != 1121)))) flag = false;
+                        if (i == 18 && pd.waterItemId != 1000) flag = false;
+                        if (i == 19 && pd.waterItemId != 1116) flag = false;
+                        if (i == 20 && pd.singularity != EPlanetSingularity.TidalLocked) flag = false;
+                        if (i == 21 && pd.singularity != EPlanetSingularity.TidalLocked2) flag = false;
+                        if (i == 22 && pd.singularity != EPlanetSingularity.TidalLocked4) flag = false;
+                        if (i == 23 && pd.singularity != EPlanetSingularity.LaySide) flag = false;
+                        if (i == 24 && pd.singularity != EPlanetSingularity.ClockwiseRotate) flag = false;
+                        if (i == 25 && pd.singularity != EPlanetSingularity.MultipleSatellites) flag = false;
+                        if (i == 26 && !statinfo.Existfactory) flag = false;
+                        if (i == 27 && statinfo.Existfactory) flag = false;
+                        if (i == 28 && statinfo.Lackofelectricity) flag = false;
+                        if (i == 29 && pd.data == null) flag = false;
+                        if (i == 30 && pd.data != null) flag = false;
                     }
 
                     if (!string.IsNullOrEmpty(searchcondition_TypeName) && pd.typeString != searchcondition_TypeName) flag = false;
@@ -1020,7 +1029,7 @@ namespace MoreStatInfo
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("工厂状态".GetTranslate() + ":", stylenormalblue);
                 GUILayout.Space(20);
-                GUILayout.Label(pd.ExistFactory() ? "有".GetTranslate() : "无".GetTranslate(), stylenormalblue);
+                GUILayout.Label(allstatinfo.planetstatinfoDic[pd.id].Existfactory ? "有".GetTranslate() : "无".GetTranslate(), stylenormalblue);
                 GUILayout.EndHorizontal();
                 GUILayout.Space(5);
                 GUILayout.BeginHorizontal();
@@ -1205,6 +1214,26 @@ namespace MoreStatInfo
                 if (GUILayout.Button(i + "", style, iconoptions))
                     ItemInfoShowIndex = i;
             }
+            if (GUILayout.Button("导出数据".GetTranslate(), GUILayout.Height(heightdis)))
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("物品ID,物品名称,实时产出(/s),实时消耗(/s),理论产量(/s),需求产量(/s),生产者数量,消费者数量,仓库总量");
+                for (int i = 0; i < ItemProto.itemIds.Length; i++)
+                {
+                    var itemId = ItemProto.itemIds[i];
+                    if (ItemProto.itemProtoById[itemId] == null) continue;
+                    sb.Append(itemId + ",");
+                    sb.Append(ItemProto.itemProtoById[itemId].name + ",");
+                    for (int j = 0; j <= 6; j++)
+                    {
+                        sb.Append(allstatinfo.ProductCount[itemId][j] + ",");
+                    }
+                    sb.AppendLine();
+                }
+                File.WriteAllText(Path.Combine(GameConfig.gameSaveFolder, "统计面板".GetTranslate() + DateTime.Now.ToString("yyyyMMdd-HH_mm_ss") + ".csv"), sb.ToString());
+                Application.OpenURL(GameConfig.gameSaveFolder);
+            }
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             GUILayout.EndVertical();
         }
@@ -1573,8 +1602,6 @@ namespace MoreStatInfo
         internal void Reset()
         {
             Array.Clear(Productsearchcondition, 0, 12000);
-            PlanetLoad.LoadPlanetTypeForGalaxy(GameMain.galaxy);
-            VeinSearch.Clear();
         }
 
         #endregion 窗口操作

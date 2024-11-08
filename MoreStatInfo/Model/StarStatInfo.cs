@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MoreStatInfo.Model
 {
-    public struct StarStatInfo
+    public class StarStatInfo
     {
         public PlanetStatInfo[] planetStatInfos;
         public long[] Powerenergyinfoshow;
@@ -38,6 +38,7 @@ namespace MoreStatInfo.Model
             for (int i = 0; i < planetStatInfos.Length; i++)
             {
                 var pd = starData.planets[i];
+                planetStatInfos[i] = new PlanetStatInfo();
                 planetStatInfos[i].Init();
                 planetStatInfos[i].Collect(pd);
             }
@@ -49,7 +50,7 @@ namespace MoreStatInfo.Model
             ClearAll();
             for (int i = 0; i < planetStatInfos.Length; i++)
             {
-                ref PlanetStatInfo planetstatinfo = ref planetStatInfos[i];
+                PlanetStatInfo planetstatinfo = planetStatInfos[i];
                 planetstatinfo.Collect();
                 for (int j = 0; j < ItemProto.itemIds.Length; j++)
                 {

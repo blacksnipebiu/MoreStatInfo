@@ -11,16 +11,10 @@ namespace MoreStatInfo.Utils
     {
         public static long[] veinAmounts = new long[64];
         private static HashSet<int> CalcVeinAmountHashSet = new HashSet<int>();
-        private static Dictionary<int, int[]> PlanetVeinCountPool = new Dictionary<int, int[]>();
 
         public static void CalcVeinAmounts(PlanetData pd)
         {
             pd.CalcVeinAmounts(ref veinAmounts, CalcVeinAmountHashSet, UIRoot.instance.uiGame.veinAmountDisplayFilter);
-        }
-
-        public static void Clear()
-        {
-            PlanetVeinCountPool.Clear();
         }
 
         /// <summary>
@@ -30,10 +24,6 @@ namespace MoreStatInfo.Utils
         /// <returns></returns>
         public static int[] veinSpotsSketch(PlanetData planet)
         {
-            if (PlanetVeinCountPool.ContainsKey(planet.id))
-            {
-                return PlanetVeinCountPool[planet.id];
-            }
             if (planet.factory != null)
             {
                 int[] result = new int[20];
@@ -42,7 +32,6 @@ namespace MoreStatInfo.Utils
                     if (vd.id == 0) continue;
                     result[(int)vd.type]++;
                 }
-                PlanetVeinCountPool.Add(planet.id, result);
                 return result;
             }
             else if (planet.data?.veinPool != null)
@@ -52,6 +41,7 @@ namespace MoreStatInfo.Utils
                 foreach (VeinData vd in rawdata.veinPool)
                 {
                     if (vd.id == 0) continue;
+                    //if (vd.amount==0) continue;
                     result[(int)vd.type]++;
                 }
                 return result;
@@ -177,7 +167,6 @@ namespace MoreStatInfo.Utils
                         }
                     }
                 }
-                PlanetVeinCountPool.Add(planet.id, array);
                 return array;
             }
             return null;
