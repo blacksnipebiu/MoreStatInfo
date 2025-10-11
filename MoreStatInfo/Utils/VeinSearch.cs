@@ -14,7 +14,7 @@ namespace MoreStatInfo.Utils
 
         public static void CalcVeinAmounts(PlanetData pd)
         {
-            pd.CalcVeinAmounts(ref veinAmounts, CalcVeinAmountHashSet, UIRoot.instance.uiGame.veinAmountDisplayFilter);
+            pd.SummarizeVeinAmountsByFilter(ref veinAmounts, CalcVeinAmountHashSet, UIRoot.instance.uiGame.veinAmountDisplayFilter);
         }
 
         /// <summary>

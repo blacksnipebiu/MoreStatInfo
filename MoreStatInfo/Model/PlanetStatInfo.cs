@@ -47,11 +47,11 @@ namespace MoreStatInfo
 
         public void Collect()
         {
-            if (pd.factory == null)
+            ClearAll();
+            if (pd?.factory == null)
             {
                 return;
             }
-            ClearAll();
             var factoryProduction = GameMain.data.statistics.production.factoryStatPool[pd.factory.index];
             if (factoryProduction != null)
             {
@@ -367,6 +367,7 @@ namespace MoreStatInfo
         /// <param name="fs"></param>
         void StationComponentCollect(FactorySystem fs)
         {
+            if (fs?.factory?.transport?.stationPool == null) return;
             foreach (StationComponent sc in fs.factory.transport.stationPool)
             {
                 if (sc == null || sc.entityId <= 0)

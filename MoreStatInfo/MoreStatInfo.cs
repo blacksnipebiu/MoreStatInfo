@@ -1,13 +1,17 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
+using HarmonyLib;
 using MoreStatInfo.Model;
+using MoreStatInfo.Patchs;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
 using UnityEngine;
+using AllStatInfo = MoreStatInfo.Model.AllStatInfo;
 using Debug = UnityEngine.Debug;
 
 namespace MoreStatInfo
@@ -17,7 +21,8 @@ namespace MoreStatInfo
     {
         public const string GUID = "cn.blacksnipe.dsp.MoreStatInfo";
         public const string NAME = "MoreStatInfo";
-        public const string VERSION = "1.5.7";
+        public const string VERSION = "2.0.1";
+        public static Harmony harmony;
         public static AllStatInfo allstatinfo;
         public static bool IsEnglish;
         public static bool OneSecondElapsed;
@@ -26,6 +31,7 @@ namespace MoreStatInfo
         private static ConfigEntry<KeyboardShortcut> QuickKey;
         private bool firstStart = true;
         private bool IsFirstMainMenu;
+        public static bool GameLoaded;
 
         IEnumerator OneSecondCheck()
         {
@@ -47,6 +53,18 @@ namespace MoreStatInfo
 
         void Start()
         {
+            MoreStatInfoGameLogic.OnGameBegin += () =>
+            {
+                GameLoaded = true;
+                Console.WriteLine("GameLoaded" + GameLoaded);
+            };
+            MoreStatInfoGameLogic.OnGameEnd += () =>
+            {
+                GameLoaded = false;
+                Console.WriteLine("GameLoaded" + GameLoaded);
+            };
+            harmony = new Harmony(GUID);
+            harmony.PatchAll(typeof(MoreStatInfoGameLogic));
             scale = Config.Bind("大小适配", "scale", 16);
             QuickKey = Config.Bind("打开窗口快捷键", "Key", new KeyboardShortcut(KeyCode.Alpha3, KeyCode.LeftAlt));
 
@@ -57,7 +75,7 @@ namespace MoreStatInfo
 
         void Update()
         {
-            if (GameMain.instance == null)
+            if (!GameMain.instance)
                 return;
             if (!IsFirstMainMenu && UIRoot.instance?.uiMainMenu?.active == true && ItemProto.itemIds != null)
             {
@@ -70,10 +88,6 @@ namespace MoreStatInfo
             {
                 firstStart = false;
                 //guiDraw.ShowGUIWindow = false;
-                while (PlanetModelingManager.calPlanetReqList.Count > 0)
-                {
-                    PlanetModelingManager.calPlanetReqList.Dequeue();
-                }
             }
             else if (!firstStart)
             {
@@ -92,9 +106,7 @@ namespace MoreStatInfo
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.F10))
-            {
-            }
         }
+
     }
 }

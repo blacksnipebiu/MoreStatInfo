@@ -1,4 +1,5 @@
-﻿using MoreStatInfo.Utils;
+﻿using MoreStatInfo.Patchs;
+using MoreStatInfo.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -96,7 +97,7 @@ namespace MoreStatInfo
         private string searchcondition_TypeName;
         private bool secondrawmaterial = true;
         private int selectitemId;
-        private bool StopRefresh;
+        public bool StopRefresh;
         private float temp_MainWindow_x = 10;
         private float temp_MainWindow_y = 200;
         private bool theorycomsumelimittoggle;
@@ -112,7 +113,7 @@ namespace MoreStatInfo
         private int theoryproducelowerlimit;
         private string theoryproducelowerlimitstr = "0";
 
-        private int unloadPlanetNum;
+        private int unscannedPlanetNum;
 
         public GUIDraw(int baseFontSize)
         {
@@ -121,6 +122,8 @@ namespace MoreStatInfo
             var morestatinfopanel = AssetBundle.LoadFromStream(Assembly.GetExecutingAssembly().GetManifestResourceStream("MoreStatInfo.morestatinfopanel")).LoadAsset<GameObject>("MoreStatInfoPanel");
 
             ui_morestatinfopanel = UnityEngine.Object.Instantiate(morestatinfopanel, UIRoot.instance.overlayCanvas.transform);
+            
+
         }
 
         public int BaseSize
@@ -372,7 +375,7 @@ namespace MoreStatInfo
                 PlanetWindowShowFun();
             }
             UIPanelSet();
-            if (!StopRefresh && OneSecondElapsed)
+            if (GameLoaded && !StopRefresh && OneSecondElapsed)
             {
                 allstatinfo.TargetPlanetIds = planetsproductinfoshow;
                 allstatinfo.TargetPlanetId = pointPlanetId;
@@ -653,12 +656,12 @@ namespace MoreStatInfo
         private void RefreshPlanet()
         {
             planetinfoshow.Clear();
-            unloadPlanetNum = 0;
+            unscannedPlanetNum = 0;
             foreach (StarData sd in GameMain.galaxy.stars)
             {
                 foreach (PlanetData pd in sd.planets)
                 {
-                    unloadPlanetNum += pd.data == null && pd.factory == null ? 1 : 0;
+                    unscannedPlanetNum +=!pd.scanned ? 1 : 0;
                     var statinfo = allstatinfo.planetstatinfoDic[pd.id];
 
                     if (PlanetorSum)
@@ -835,6 +838,13 @@ namespace MoreStatInfo
             GUILayout.Label("放电功率".GetTranslate() + ":" + (TGMKinttostringMode ? Powerenergyinfoshow[3].ToString() : allstatinfo.Powerenergyinfoshow[3] + "W"), powerlabelStyle);
             GUILayout.Label("充电功率".GetTranslate() + ":" + (TGMKinttostringMode ? Powerenergyinfoshow[4].ToString() : allstatinfo.Powerenergyinfoshow[4] + "W"), powerlabelStyle);
 
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("导出数据".GetTranslate(), GUILayout.Height(heightdis)))
+            {
+                OutputDataUtil.OutputFactoryBuildInfo();
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
             GUILayout.EndVertical();
         }
 
@@ -942,14 +952,17 @@ namespace MoreStatInfo
                             searchcondition_bool[i] = false;
                         }
                     }
-                    GUILayout.Label("未加载星球".GetTranslate() + $"{unloadPlanetNum}");
+                    GUILayout.Label("未加载星球".GetTranslate() + $"{unscannedPlanetNum}");
                     if (GUILayout.Button("加载全部星球".GetTranslate()))
                     {
-                        PlanetLoad.LoadAllPlanet();
+                        foreach (StarData sd in GameMain.galaxy.stars)
+                        {
+                            PlanetModelingManager.RequestScanStar(sd);
+                        }
                     }
-                    if (PlanetModelingManager.calPlanetReqList.Count > 0)
+                    if (PlanetModelingManager.scnPlanetReqList!=null && PlanetModelingManager.scnPlanetReqList.Count > 0)
                     {
-                        GUILayout.Label($"{PlanetModelingManager.calPlanetReqList.Count}" + "个星球加载中".GetTranslate());
+                        GUILayout.Label($"{PlanetModelingManager.scnPlanetReqList.Count}" + "个星球加载中".GetTranslate());
                         GUILayout.Label("请勿切换存档".GetTranslate());
                     }
                     GUILayout.EndVertical();
@@ -1134,6 +1147,7 @@ namespace MoreStatInfo
             GUILayout.EndHorizontal();
         }
 
+
         /// <summary>
         /// 产物统计面板
         /// </summary>
@@ -1216,22 +1230,7 @@ namespace MoreStatInfo
             }
             if (GUILayout.Button("导出数据".GetTranslate(), GUILayout.Height(heightdis)))
             {
-                var sb = new StringBuilder();
-                sb.AppendLine("物品ID,物品名称,实时产出(/s),实时消耗(/s),理论产量(/s),需求产量(/s),生产者数量,消费者数量,仓库总量");
-                for (int i = 0; i < ItemProto.itemIds.Length; i++)
-                {
-                    var itemId = ItemProto.itemIds[i];
-                    if (ItemProto.itemProtoById[itemId] == null) continue;
-                    sb.Append(itemId + ",");
-                    sb.Append(ItemProto.itemProtoById[itemId].name + ",");
-                    for (int j = 0; j <= 6; j++)
-                    {
-                        sb.Append(allstatinfo.ProductCount[itemId][j] + ",");
-                    }
-                    sb.AppendLine();
-                }
-                File.WriteAllText(Path.Combine(GameConfig.gameSaveFolder, "统计面板".GetTranslate() + DateTime.Now.ToString("yyyyMMdd-HH_mm_ss") + ".csv"), sb.ToString());
-                Application.OpenURL(GameConfig.gameSaveFolder);
+                OutputDataUtil.OutputItemInfo();
             }
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
@@ -1459,7 +1458,9 @@ namespace MoreStatInfo
                 GUILayout.EndHorizontal();
                 GUILayout.EndVertical();
             }
-            catch { }
+            catch (Exception ex) {
+                Console.WriteLine(ex.ToString());
+            }
         }
 
         /// <summary>
@@ -1467,7 +1468,10 @@ namespace MoreStatInfo
         /// </summary>
         private void PlanetWindowShowFun()
         {
-            GUI.DrawTexture(GUI.Window(202108213, new Rect(MainWindow_x + MainWindowWidth, MainWindow_y, heightdis * 7, MainWindowHeight), PlanetWindow, ""), mytexture);
+            if (GameLoaded)
+            {
+                GUI.DrawTexture(GUI.Window(202108213, new Rect(MainWindow_x + MainWindowWidth, MainWindow_y, heightdis * 7, MainWindowHeight), PlanetWindow, ""), mytexture);
+            }
         }
 
         /// <summary>
